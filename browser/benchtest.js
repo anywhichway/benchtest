@@ -21164,13 +21164,13 @@
 	    const relativeMarginOferror = `+/- ${result.target.stats.rme.toFixed(2)}%`;
 	    const sampleSize = result.target.stats.sample.length;
 
-	    table.push(typeof(Table)==="undefined" ? {"Name":name, "Ops/Sec":opsPerSecond, "Margin of Error":relativeMarginOferror, "Sample Size":sampleSize} : [name, opsPerSecond, relativeMarginOferror, sampleSize]);
+	    table.push([name, opsPerSecond, relativeMarginOferror, sampleSize]);
 	  });
 	  let expect = suite.expect;
 	  for(let name in suite.tests) {
 	  	const test = suite.tests[name];
 	  	if(!benchmarkResults.some(result => result.target.name===name)) {
-	  		table.push(typeof(Table)==="undefined" ? {"Name":name, "Ops/Sec":"0", "Margin of Error":"0", "Sample Size":"0"} : [name, "0", "0", "0"]);
+	  		table.push([name, "0", "0", "0"]);
 	  		if(typeof(test.expect)!=="undefined") expect = test.expect;
 	  		let result;
 	  		try {
@@ -21178,7 +21178,7 @@
 	  		} catch(e) {
 	  			result = e.message;
 	  		}
-	  		errors.push(typeof(Table)==="undefined" ? {"Name":name, "Expected":expect+"", "Received":result} : [name, expect+"", result]);
+	  		errors.push([name, expect+"", result]);
 	  	}
 	  }
 	  suite.results = {statistics:table.errors};
@@ -21197,32 +21197,16 @@
 	    	}
 	    } else {
 	    	benchmarks.log.log(`Statistics: ${suiteName}`);
+	    	table = table.map(row => { return {"Name":row[0], "Ops/Sec":row[1], "Margin of Error":row[2], "Sample Size":row[3]}; });
 	    	benchmarks.log.table(table); // eslint-disable-line no-console
 	    	 if(errors.length>0) {
 	    		 benchmarks.log.log(`Errors: ${suiteName}`);
+	    		 errors = errors.map(row => { return {"Name":row[0], "Expected":row[1]+"", "Received":row[2]}; });
 	    		 benchmarks.log.table(errors);
 	    	 }
 	    }
 	  }
 	};
-
-	const sortDescResults = (benchmarkResults) => {
-	  return benchmarkResults.sort((a, b) => {
-	    return a.target.hz < b.target.hz ? 1 : -1;
-	  });
-	};
-
-	const onCycle = (event) => {
-	  results.push(event);
-	};
-
-	const onComplete = (benchmarks,suiteName) => {
-	  const orderedBenchmarkResults = sortDescResults(results);
-	  showResults(benchmarks,suiteName,orderedBenchmarkResults);
-	};
-
-
-	//let result;
 
 	const serialize = (data) => {
 			const type = typeof(data);
@@ -21260,11 +21244,10 @@
 			return object;
 		}
 		
-		let results,
-		context;
 	class Benchtest {
 		constructor(spec) {
 			this.benchmarks = deserialize(spec);
+			this.results = [];
 		}
 		serialize() {
 			return serialize(this);
@@ -21272,20 +21255,28 @@
 		run() {
 			const benchmarks = this.benchmarks;
 			if(benchmarks.before) {
-				context = benchmarks.context;
-				benchmarks.before();
+				benchmarks.before.call(Object.assign({},benchmarks.context));
 			}
 			for(let sname in benchmarks.suites) {
 				const s = new Benchmark.Suite,
 					suite = benchmarks.suites[sname],
-					context = suite.context;
-				suite.context = Object.assign({},benchmarks.context,suite.context);
-				let expect = (typeof(suite.expect)==="function" ? suite.expect.bind(suite.context) : suite.expect);
+					scontext = Object.assign({},benchmarks.context,suite.context);
+				for(let key in scontext) {
+					if(typeof(scontext[key])==="function") {
+						scontext[key] = scontext[key].bind(scontext);
+					}
+				}
+				let expect = (typeof(suite.expect)==="function" ? suite.expect.bind(scontext) : suite.expect);
 				for(let tname in suite.tests) {
 					const test = suite.tests[tname],
-						context = Object.assign({},suite.context,test.context);
-					const f = test.f = test.f.bind(context);
-					if(typeof(test.expect)!=="undefined") expect = (typeof(test.expect)==="function" ? test.expect.bind(context) : test.expect);
+						tcontext = Object.assign({},scontext,test.context),
+						f = test.f = test.f.bind(tcontext);
+					for(let key in tcontext) {
+						if(typeof(tcontext[key])==="function") {
+							tcontext[key] = tcontext[key].bind(tcontext);
+						}
+					}
+					if(typeof(test.expect)!=="undefined") expect = (typeof(test.expect)==="function" ? test.expect.bind(tcontext) : test.expect);
 					try {
 						const result = f();
 						if(typeof(expect)==="undefined" || (typeof(expect)==="function" ? expect(result) : result===expect)) {
@@ -21300,12 +21291,14 @@
 				s.on('start', () => {
 				  console.log("");
 				  console.log(`Running ${sname} ...`);
-				  results = [];
+				  this.results = [];
 				})
-				.on('cycle', onCycle)
+				.on('cycle', (event) =>  this.results.push(event))
 				.on('complete', () => {
-					suite.context = context;
-				  onComplete(benchmarks,sname);
+				   const orderedBenchmarkResults = this.results.sort((a, b) => {
+				     return a.target.hz < b.target.hz ? 1 : -1;
+				   });
+				   showResults(benchmarks,sname,orderedBenchmarkResults);
 				})
 				.run({
 				  async: false

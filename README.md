@@ -53,8 +53,14 @@ When using benchtest, all tests are represented in the context of a JavaScript o
 	},
 	results: { // generated dynamically during testing
 		<suiteName>: {
-			statistics: // ALPHA finallizing spec
-			errors: // ALPHA finallizing spec
+			statistics: [
+				[<testName>,<ops/sec>,<margin of error>,<sample size>]
+				[,...]
+			],
+			errors: /[
+				[<testName>,<expected>,<received>]
+				[,...]
+			],
 		}[, // additional suite results
 		...]
 	}
@@ -82,6 +88,8 @@ const json = new Benchtest(<spec>).serialize(),
 
 
 # Release History (reverse chronological order)
+
+2018-02-04 v0.0.2a ALPHA Update results spec. Address some context scope issues.
 
 2018-02-04 v0.0.1a ALPHA Initial public release
 
