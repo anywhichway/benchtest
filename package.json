@@ -1,0 +1,39 @@
+{
+  "name": "benchtest",
+  "version": "v0.0.1a",
+  "description": "Opinionated, serializable, integrated benchmarking and unit testing.",
+  "engines": {},
+  "license": "MIT",
+  "scripts": {
+    "prepare": "cp ./src/benchtest.js ./index.js && cp ./src/benchtest.js dist/benchtest.js && browserify ./src/benchtest.js -o browser/benchtest.js && uglifyjs browser/benchtest.js -o browser/benchtest.min.js && uglifyjs src/benchtest.js -o dist/benchtest.min.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anywhichway/benchtest.git"
+  },
+  "keywords": [
+    "memoize",
+    "moize",
+    "fast-memoize",
+    "micro-memoize",
+    "oddy-osmani"
+  ],
+  "author": "Simon Y. Blackwell <syblackwell@anywhichway.com> (http://www.github.com/anywhichway)",
+  "bugs": {
+    "url": "https://github.com/anywhichway/benchtest/issues"
+  },
+  "homepage": "https://github.com/anywhichway/benchtest#readme",
+  "devDependencies": {
+    "blanket": "^1.2.3",
+    "chai": "^3.4.1",
+    "codacy-coverage": "^2.0.0",
+    "codeclimate-test-reporter": "^0.2.0",
+    "istanbul": "^0.4.2",
+    "mocha": "^2.3.4",
+    "uglify-es": "^3.1.6"
+  },
+  "dependencies": {
+    "benchmark": "^2.1.4",
+    "markdown-table": "^1.1.1"
+  }
+}
