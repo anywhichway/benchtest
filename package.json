@@ -1,6 +1,6 @@
 {
   "name": "benchtest",
-  "version": "v0.0.6b",
+  "version": "v0.0.7b",
   "description": "Opinionated, serializable, integrated benchmarking and unit testing.",
   "engines": {},
   "license": "MIT",

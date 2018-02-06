@@ -10,6 +10,8 @@ Benchtest is wrapper around the superb [benchmark.js](https://github.com/bestiej
 
 4) Multiple suites could be clustered and run at the same time
 
+5) Results are in Markdown table format for easy copy and paste.
+
 # Installation
 
 npm install benchtest
@@ -21,7 +23,7 @@ When using benchtest, all tests are represented in the context of a JavaScript o
 ```javascript
 {
 	name: string, // optional name
-	log: outputStream, // optional, if provided results are logged to the stream
+	log: outputStream, // optional, if provided results are logged to the stream in Markdown format
 	context: { // optional, provides functions or data for suites
 		// keys with data or functions as values, "this" inside of cycle and test functions
 	},
@@ -52,7 +54,8 @@ When using benchtest, all tests are represented in the context of a JavaScript o
 				[<testName>,<ops/sec>,<margin of error>,<sample size>]
 				[,...]
 			],
-			errors: /[
+			errors: [
+				// if expected is a function, the function body is printed
 				[<testName>,<expected>,<received>]
 				[,...]
 			],
@@ -149,6 +152,8 @@ end
 
 
 # Release History (reverse chronological order)
+
+2018-02-07 v0.0.7b BETA Adjusted results to conform better to spec.
 
 2018-02-06 v0.0.6b BETA Improved test case and example.
 

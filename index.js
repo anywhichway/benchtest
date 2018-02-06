@@ -4,7 +4,7 @@
 	
 	const showResults = (benchmarks,suiteName,benchmarkResults) => {
 		const suite = benchmarks.suites[suiteName],
-			results = suite.results;
+			results = benchmarks.results[suiteName];
 	  benchmarkResults.forEach(result => {
 	    const name = result.target.name;
 	    const opsPerSecond = result.target.hz.toLocaleString('en-US', {
@@ -76,7 +76,6 @@
 	class Benchtest {
 		constructor(spec) {
 			this.benchmarks = deserialize(spec);
-			this.results = [];
 		}
 		serialize() {
 			return serialize(this);
@@ -84,6 +83,7 @@
 		run() {
 			const benchmarks = this.benchmarks,
 				promises = [];
+			benchmarks.results = {};
 			if(benchmarks.start) {
 				benchmarks.start.call(benchmarks.context);
 			}
@@ -92,7 +92,7 @@
 				const s = new Benchmark.Suite,
 					suite = benchmarks.suites[sname],
 					context = Object.assign({},benchmarks.context,suite.context);
-				suite.results = {statistics:[],errors:[]};
+				benchmarks.results[sname] = {statistics:[],errors:[]};
 				let completed;
 				promises.push(new Promise((resolve) => completed = resolve));
 				for(let key in context) {
@@ -116,10 +116,10 @@
 						if(typeof(expect)==="undefined" || (typeof(expect)==="function" ? expect(result) : result===expect)) {
 							s.add(tname,f);
 						} else {
-							suite.results.errors.push([tname, expect+"", result]);
+							benchmarks.results[sname].errors.push([tname, expect+"", result]);
 						}
 					} catch(e) {
-							suite.results.errors.push([tname, expect+"", e.message]);
+						benchmarks.results[sname].errors.push([tname, expect+"", e.message]);
 					}
 				}
 				s.on('start', () => {
