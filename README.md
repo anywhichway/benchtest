@@ -8,6 +8,8 @@ Benchtest is wrapper around the superb [benchmark.js](https://github.com/bestiej
 
 3) There is some unit test like validation to ensure benchmarks are producing correct results
 
+4) Multiple suites could be clustered and run at the same time
+
 # Installation
 
 npm install benchtest
