@@ -3,9 +3,8 @@
 		Table = require("markdown-table");
 	
 	const showResults = (benchmarks,suiteName,benchmarkResults) => {
-		const suite = benchmarks.suites[suiteName];
-	  let table = [],
-	  	errors = [];
+		const suite = benchmarks.suites[suiteName],
+			results = suite.results;
 	  benchmarkResults.forEach(result => {
 	    const name = result.target.name;
 	    const opsPerSecond = result.target.hz.toLocaleString('en-US', {
@@ -14,33 +13,24 @@
 	    const relativeMarginOferror = `+/- ${result.target.stats.rme.toFixed(2)}%`;
 	    const sampleSize = result.target.stats.sample.length;
 
-	    table.push([name, opsPerSecond, relativeMarginOferror, sampleSize]);
+	    results.statistics.push([name, opsPerSecond, relativeMarginOferror, sampleSize]);
 	  });
 	  let expect = suite.expect;
 	  for(let name in suite.tests) {
 	  	const test = suite.tests[name];
 	  	if(!benchmarkResults.some(result => result.target.name===name)) {
-	  		table.push([name, "0", "0", "0"]);
-	  		if(typeof(test.expect)!=="undefined") expect = test.expect;
-	  		let result;
-	  		try {
-	  			result = test.f();
-	  		} catch(e) {
-	  			result = e.message;
-	  		}
-	  		errors.push([name, expect+"", result]);
+	  		results.statistics.push([name, "0", "0", "0"]);
 	  	}
 	  }
-	  suite.results = {statistics:table.errors};
 	  
 	  if(benchmarks.log) {
-	    	table.unshift(["Name","Ops/Sec","Margin of Error","Sample Size"]);
-	    	table = Table(table);
+	  	 results.statistics.unshift(["Name","Ops/Sec","Margin of Error","Sample Size"]);
+	    	const statistics = Table(results.statistics);
 	    	benchmarks.log.log(`Statistics: ${suiteName}`);
-	    	benchmarks.log.log(table);
-	    	if(errors.length>0) {
-	    		errors.unshift(["Name","Expected","Received"]);
-	    		errors = Table(errors);
+	    	benchmarks.log.log(statistics);
+	    	if(results.errors.length>0) {
+	    		results.errors.unshift(["Name","Expected","Received"]);
+	    		const errors = Table(results.errors);
 	    		benchmarks.log.log(`Errors: ${suiteName}`);
 	    		benchmarks.log.log(errors);
 	    	}
@@ -102,6 +92,7 @@
 				const s = new Benchmark.Suite,
 					suite = benchmarks.suites[sname],
 					context = Object.assign({},benchmarks.context,suite.context);
+				suite.results = {statistics:[],errors:[]};
 				let completed;
 				promises.push(new Promise((resolve) => completed = resolve));
 				for(let key in context) {
@@ -125,16 +116,14 @@
 						if(typeof(expect)==="undefined" || (typeof(expect)==="function" ? expect(result) : result===expect)) {
 							s.add(tname,f);
 						} else {
-							console.warn(`Ignoring ${sname}:${tname}. Expected:`,expect,"Received:",result);
+							suite.results.errors.push([tname, expect+"", result]);
 						}
 					} catch(e) {
-						console.warn(`Ignoring ${sname}:${tname}. Expected:`,expect,`Received:${e.message}`);
+							suite.results.errors.push([tname, expect+"", e.message]);
 					}
 				}
 				s.on('start', () => {
-				  console.log("");
-				  console.log(`Running ${sname} ...`);
-				  if(benchmarks.before) benchmarks.before.call(context);
+				  if(benchmarks.before) benchmarks.before.call(context,sname);
 				  this.results = [];
 				})
 				.on('cycle', (event) =>  {
@@ -142,7 +131,7 @@
 					if(benchmarks.between) benchmarks.between.call(benchmarks);
 				})
 				.on('complete', () => {
-					if(benchmarks.after) benchmarks.after.call(context);
+					if(benchmarks.after) benchmarks.after.call(context,sname);
 				   const orderedBenchmarkResults = this.results.sort((a, b) => {
 				     return a.target.hz < b.target.hz ? 1 : -1;
 				   });

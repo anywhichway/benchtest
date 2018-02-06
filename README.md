@@ -26,9 +26,9 @@ When using benchtest, all tests are represented in the context of a JavaScript o
 		// keys with data or functions as values, "this" inside of cycle and test functions
 	},
 	start: function, // optional, runs when benchmarking starts
-	before: function, // optional, runs when each suite starts
+	before: function(suiteName), // optional, runs when each suite starts
 	between: function, // optional, runs between each suite
-	after: function, // optional, runs when each suite ends
+	after: function(suiteName), // optional, runs when each suite ends
 	end: function,  //optional, runs when benchmarkin is complete
 	suites: {
 		<suiteName>: {
@@ -86,23 +86,35 @@ const json = new Benchtest(<spec>).serialize(),
 ```javascript
 const test = new Benchtest({
 		log: console,
+		context: {
+			value: "context value"
+		},
 		start: () => console.log("start"),
-		before: () => console.log("before test"),
-		between: () => console.log("between tests"),
-		after: () => console.log("after test"),
+		before: (name) => console.log(`Running ${name} ...`),
+		between: () => console.log("between suites"),
+		after: () => (name) => console.log(`Completed ${name} ...`),
 		end: () => console.log("end"),
 		suites: {
 			suiteone: {
+				expect: "context value",
 				tests: {
-					main: {
-						f: () => true
+					test1: {
+						f: function() { return this.value; }
 					}
 				}
 			},
 			suitetwo: {
+				// will fail due to override below
+				expect: function(value) { return value==="context value"; },
+				context: {
+					value: "context override value"
+				},
 				tests: {
-					main: {
-						f: () => true
+					test1: {
+						f: function() { return this.value; }
+					},
+					test2: {
+						f: function() { return "context value"; }
 					}
 				}
 			}
@@ -116,27 +128,29 @@ will produce
 ```
 start
 Running suiteone ...
-before test
-between tests
-after test
+between suites
 Statistics: suiteone
-| Name | Ops/Sec    | Margin of Error | Sample Size |
-| ---- | ---------- | --------------- | ----------- |
-| main | 68,025,552 | +/- 1.91%       | 83          |
-
+| Name  | Ops/Sec    | Margin of Error | Sample Size |
+| ----- | ---------- | --------------- | ----------- |
+| test1 | 65,031,779 | +/- 1.34%       | 89          |
 Running suitetwo ...
-before test
-between tests
-after test
+between suites
 Statistics: suitetwo
-| Name | Ops/Sec    | Margin of Error | Sample Size |
-| ---- | ---------- | --------------- | ----------- |
-| main | 69,720,091 | +/- 1.46%       | 88          |
+| Name  | Ops/Sec    | Margin of Error | Sample Size |
+| ----- | ---------- | --------------- | ----------- |
+| test2 | 65,119,160 | +/- 3.83%       | 79          |
+| test1 | 0          | 0               | 0           |
+Errors: suitetwo
+| Name  | Expected                      | Received               |
+| ----- | ----------------------------- | ---------------------- |
+| test1 | function () { [native code] } | context override value |
 end
 ```
 
 
 # Release History (reverse chronological order)
+
+2018-02-06 v0.0.6b BETA Improved test case and example.
 
 2018-02-06 v0.0.5b BETA Modified cycle behavior and functions. Finalized API.
 

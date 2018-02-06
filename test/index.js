@@ -5,23 +5,35 @@ if(typeof(Benchtest)==="undefined") {
 
 const test = new Benchtest({
 		log: console,
+		context: {
+			value: "context value"
+		},
 		start: () => console.log("start"),
-		before: () => console.log("before test"),
-		between: () => console.log("between tests"),
-		after: () => console.log("after test"),
+		before: (name) => console.log(`Running ${name} ...`),
+		between: () => console.log("between suites"),
+		after: () => (name) => console.log(`Completed ${name} ...`),
 		end: () => console.log("end"),
 		suites: {
 			suiteone: {
+				expect: "context value",
 				tests: {
-					main: {
-						f: () => true
+					test1: {
+						f: function() { return this.value; }
 					}
 				}
 			},
 			suitetwo: {
+				// will fail due to override below
+				expect: function(value) { return value==="context value"; },
+				context: {
+					value: "context override value"
+				},
 				tests: {
-					main: {
-						f: () => true
+					test1: {
+						f: function() { return this.value; }
+					},
+					test2: {
+						f: function() { return "context value"; }
 					}
 				}
 			}
