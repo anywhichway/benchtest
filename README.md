@@ -81,6 +81,60 @@ const json = new Benchtest(<spec>).serialize(),
 	benchtest = new Benchtest(json).run(); // // run and return the benchtest 
 ```
 
+## Example
+
+```javascript
+const test = new Benchtest({
+		log: console,
+		start: () => console.log("start"),
+		before: () => console.log("before test"),
+		between: () => console.log("between tests"),
+		after: () => console.log("after test"),
+		end: () => console.log("end"),
+		suites: {
+			suiteone: {
+				tests: {
+					main: {
+						f: () => true
+					}
+				}
+			},
+			suitetwo: {
+				tests: {
+					main: {
+						f: () => true
+					}
+				}
+			}
+		}
+	});
+test.run();
+```
+
+will produce
+
+```
+start
+Running suiteone ...
+before test
+between tests
+after test
+Statistics: suiteone
+| Name | Ops/Sec    | Margin of Error | Sample Size |
+| ---- | ---------- | --------------- | ----------- |
+| main | 68,025,552 | +/- 1.91%       | 83          |
+
+Running suitetwo ...
+before test
+between tests
+after test
+Statistics: suitetwo
+| Name | Ops/Sec    | Margin of Error | Sample Size |
+| ---- | ---------- | --------------- | ----------- |
+| main | 69,720,091 | +/- 1.46%       | 88          |
+end
+```
+
 
 # Release History (reverse chronological order)
 
