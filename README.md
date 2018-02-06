@@ -21,29 +21,22 @@ When using benchtest, all tests are represented in the context of a JavaScript o
 	name: string, // optional name
 	log: outputStream, // optional, if provided results are logged to the stream
 	context: { // optional, provides functions or data for suites
-	
+		// keys with data or functions as values, "this" inside of cycle and test functions
 	},
-	before: function, // optional, runs when benchtest starts,
-	between: function, // optionl, runs between each suite
-	after: function, // optional, runs when benchtest ends,
+	start: function, // optional, runs when benchmarking starts
+	before: function, // optional, runs when each suite starts
+	between: function, // optional, runs between each suite
+	after: function, // optional, runs when each suite ends
+	end: function,  //optional, runs when benchmarkin is complete
 	suites: {
 		<suiteName>: {
 			context: { // optional, provides functions or data for suiteName
-				// extends/overrides parent context
+				// extends/overrides parent context in before, after, and test functions
 			},
-			before: function, // optional, runs when suite starts
-			between: function, // optional, runs between each test
-			after: function, // optional, runs when suite ends
-			expect: value|function, // optional, used to verify tests return correct value
+			expect: boolean|number|string|function, // optional, used to verify tests return correct value
 			tests: {
 				<testName>: {
-					context: {
-					
-					},
-					before: function, // optional, runs before test is benchmarked
-					between: function, // optional, runs between each call
-					after: function, // optional, runs after test is benchmarked
-					expect: value|function, // optional, used to verify test returns correct value
+					expect: value|function, // optional, overrides suite expect
 					f: function // the actual function to test and benchmark
 				}[, // optional additional tests
 				...]
@@ -88,6 +81,12 @@ const json = new Benchtest(<spec>).serialize(),
 
 
 # Release History (reverse chronological order)
+
+2018-02-06 v0.0.5b BETA Modified cycle behavior and functions. Finalized API.
+
+2018-02-05 v0.0.4a ALPHA Removed context on tests. Can't support with Benchmark.js.
+
+2018-02-04 v0.0.3a ALPHA Fixed Node table rendering for results
 
 2018-02-04 v0.0.2a ALPHA Update results spec. Address some context scope issues.
 

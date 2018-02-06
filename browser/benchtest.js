@@ -2826,7 +2826,7 @@
 }.call(this));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"lodash":2,"platform":3}],2:[function(require,module,exports){
+},{"lodash":2,"platform":4}],2:[function(require,module,exports){
 (function (global){
 /**
  * @license
@@ -19928,6 +19928,258 @@
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{}],3:[function(require,module,exports){
+'use strict';
+
+/* Expose. */
+module.exports = markdownTable;
+
+/* Expressions. */
+var EXPRESSION_DOT = /\./;
+var EXPRESSION_LAST_DOT = /\.[^.]*$/;
+
+/* Allowed alignment values. */
+var LEFT = 'l';
+var RIGHT = 'r';
+var CENTER = 'c';
+var DOT = '.';
+var NULL = '';
+
+var ALLIGNMENT = [LEFT, RIGHT, CENTER, DOT, NULL];
+var MIN_CELL_SIZE = 3;
+
+/* Characters. */
+var COLON = ':';
+var DASH = '-';
+var PIPE = '|';
+var SPACE = ' ';
+var NEW_LINE = '\n';
+
+/* Create a table from a matrix of strings. */
+function markdownTable(table, options) {
+  var settings = options || {};
+  var delimiter = settings.delimiter;
+  var start = settings.start;
+  var end = settings.end;
+  var alignment = settings.align;
+  var calculateStringLength = settings.stringLength || lengthNoop;
+  var cellCount = 0;
+  var rowIndex = -1;
+  var rowLength = table.length;
+  var sizes = [];
+  var align;
+  var rule;
+  var rows;
+  var row;
+  var cells;
+  var index;
+  var position;
+  var size;
+  var value;
+  var spacing;
+  var before;
+  var after;
+
+  alignment = alignment ? alignment.concat() : [];
+
+  if (delimiter === null || delimiter === undefined) {
+    delimiter = SPACE + PIPE + SPACE;
+  }
+
+  if (start === null || start === undefined) {
+    start = PIPE + SPACE;
+  }
+
+  if (end === null || end === undefined) {
+    end = SPACE + PIPE;
+  }
+
+  while (++rowIndex < rowLength) {
+    row = table[rowIndex];
+
+    index = -1;
+
+    if (row.length > cellCount) {
+      cellCount = row.length;
+    }
+
+    while (++index < cellCount) {
+      position = row[index] ? dotindex(row[index]) : null;
+
+      if (!sizes[index]) {
+        sizes[index] = MIN_CELL_SIZE;
+      }
+
+      if (position > sizes[index]) {
+        sizes[index] = position;
+      }
+    }
+  }
+
+  if (typeof alignment === 'string') {
+    alignment = pad(cellCount, alignment).split('');
+  }
+
+  /* Make sure only valid alignments are used. */
+  index = -1;
+
+  while (++index < cellCount) {
+    align = alignment[index];
+
+    if (typeof align === 'string') {
+      align = align.charAt(0).toLowerCase();
+    }
+
+    if (ALLIGNMENT.indexOf(align) === -1) {
+      align = NULL;
+    }
+
+    alignment[index] = align;
+  }
+
+  rowIndex = -1;
+  rows = [];
+
+  while (++rowIndex < rowLength) {
+    row = table[rowIndex];
+
+    index = -1;
+    cells = [];
+
+    while (++index < cellCount) {
+      value = row[index];
+
+      value = stringify(value);
+
+      if (alignment[index] === DOT) {
+        position = dotindex(value);
+
+        size = sizes[index] +
+          (EXPRESSION_DOT.test(value) ? 0 : 1) -
+          (calculateStringLength(value) - position);
+
+        cells[index] = value + pad(size - 1);
+      } else {
+        cells[index] = value;
+      }
+    }
+
+    rows[rowIndex] = cells;
+  }
+
+  sizes = [];
+  rowIndex = -1;
+
+  while (++rowIndex < rowLength) {
+    cells = rows[rowIndex];
+
+    index = -1;
+
+    while (++index < cellCount) {
+      value = cells[index];
+
+      if (!sizes[index]) {
+        sizes[index] = MIN_CELL_SIZE;
+      }
+
+      size = calculateStringLength(value);
+
+      if (size > sizes[index]) {
+        sizes[index] = size;
+      }
+    }
+  }
+
+  rowIndex = -1;
+
+  while (++rowIndex < rowLength) {
+    cells = rows[rowIndex];
+
+    index = -1;
+
+    if (settings.pad !== false) {
+      while (++index < cellCount) {
+        value = cells[index];
+
+        position = sizes[index] - (calculateStringLength(value) || 0);
+        spacing = pad(position);
+
+        if (alignment[index] === RIGHT || alignment[index] === DOT) {
+          value = spacing + value;
+        } else if (alignment[index] === CENTER) {
+          position /= 2;
+
+          if (position % 1 === 0) {
+            before = position;
+            after = position;
+          } else {
+            before = position + 0.5;
+            after = position - 0.5;
+          }
+
+          value = pad(before) + value + pad(after);
+        } else {
+          value += spacing;
+        }
+
+        cells[index] = value;
+      }
+    }
+
+    rows[rowIndex] = cells.join(delimiter);
+  }
+
+  if (settings.rule !== false) {
+    index = -1;
+    rule = [];
+
+    while (++index < cellCount) {
+      /* When `pad` is false, make the rule the same size as the first row. */
+      if (settings.pad === false) {
+        value = table[0][index];
+        spacing = calculateStringLength(stringify(value));
+        spacing = spacing > MIN_CELL_SIZE ? spacing : MIN_CELL_SIZE;
+      } else {
+        spacing = sizes[index];
+      }
+
+      align = alignment[index];
+
+      /* When `align` is left, don't add colons. */
+      value = align === RIGHT || align === NULL ? DASH : COLON;
+      value += pad(spacing - 2, DASH);
+      value += align !== LEFT && align !== NULL ? COLON : DASH;
+
+      rule[index] = value;
+    }
+
+    rows.splice(1, 0, rule.join(delimiter));
+  }
+
+  return start + rows.join(end + NEW_LINE + start) + end;
+}
+
+function stringify(value) {
+  return (value === null || value === undefined) ? '' : String(value);
+}
+
+/* Get the length of `value`. */
+function lengthNoop(value) {
+  return String(value).length;
+}
+
+/* Get a string consisting of `length` `character`s. */
+function pad(length, character) {
+  return Array(length + 1).join(character || SPACE);
+}
+
+/* Get the position of the last dot in `value`. */
+function dotindex(value) {
+  var match = EXPRESSION_LAST_DOT.exec(value);
+
+  return match ? match.index + 1 : value.length;
+}
+
+},{}],4:[function(require,module,exports){
 (function (global){
 /*!
  * Platform.js <https://mths.be/platform>
@@ -21148,9 +21400,10 @@
 }.call(this));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],4:[function(require,module,exports){
+},{}],5:[function(require,module,exports){
 (function() {
-	const Benchmark = require("benchmark");
+	const Benchmark = require("benchmark"),
+		Table = require("markdown-table");
 	
 	const showResults = (benchmarks,suiteName,benchmarkResults) => {
 		const suite = benchmarks.suites[suiteName];
@@ -21184,7 +21437,6 @@
 	  suite.results = {statistics:table.errors};
 	  
 	  if(benchmarks.log) {
-	    if(typeof(Table)!=="undefined") {
 	    	table.unshift(["Name","Ops/Sec","Margin of Error","Sample Size"]);
 	    	table = Table(table);
 	    	benchmarks.log.log(`Statistics: ${suiteName}`);
@@ -21195,16 +21447,6 @@
 	    		benchmarks.log.log(`Errors: ${suiteName}`);
 	    		benchmarks.log.log(errors);
 	    	}
-	    } else {
-	    	benchmarks.log.log(`Statistics: ${suiteName}`);
-	    	table = table.map(row => { return {"Name":row[0], "Ops/Sec":row[1], "Margin of Error":row[2], "Sample Size":row[3]}; });
-	    	benchmarks.log.table(table); // eslint-disable-line no-console
-	    	 if(errors.length>0) {
-	    		 benchmarks.log.log(`Errors: ${suiteName}`);
-	    		 errors = errors.map(row => { return {"Name":row[0], "Expected":row[1]+"", "Received":row[2]}; });
-	    		 benchmarks.log.table(errors);
-	    	 }
-	    }
 	  }
 	};
 
@@ -21243,7 +21485,7 @@
 			}
 			return object;
 		}
-		
+	
 	class Benchtest {
 		constructor(spec) {
 			this.benchmarks = deserialize(spec);
@@ -21253,30 +21495,34 @@
 			return serialize(this);
 		}
 		run() {
-			const benchmarks = this.benchmarks;
-			if(benchmarks.before) {
-				benchmarks.before.call(Object.assign({},benchmarks.context));
+			const benchmarks = this.benchmarks,
+				promises = [];
+			if(benchmarks.start) {
+				benchmarks.start.call(benchmarks.context);
 			}
-			for(let sname in benchmarks.suites) {
+			const suitenames = Object.keys(benchmarks.suites);
+			suitenames.forEach((sname,i) => {
 				const s = new Benchmark.Suite,
 					suite = benchmarks.suites[sname],
-					scontext = Object.assign({},benchmarks.context,suite.context);
-				for(let key in scontext) {
-					if(typeof(scontext[key])==="function") {
-						scontext[key] = scontext[key].bind(scontext);
+					context = Object.assign({},benchmarks.context,suite.context);
+				let completed;
+				promises.push(new Promise((resolve) => completed = resolve));
+				for(let key in context) {
+					const value = context[key];
+					if(typeof(value)==="function" && !value.bound) {
+						context[key] = value.bind(context);
+						context[key].bound = true;
 					}
 				}
-				let expect = (typeof(suite.expect)==="function" ? suite.expect.bind(scontext) : suite.expect);
 				for(let tname in suite.tests) {
 					const test = suite.tests[tname],
-						tcontext = Object.assign({},scontext,test.context),
-						f = test.f = test.f.bind(tcontext);
-					for(let key in tcontext) {
-						if(typeof(tcontext[key])==="function") {
-							tcontext[key] = tcontext[key].bind(tcontext);
-						}
+						f = test.f.bind(context);
+					let expect; 
+					if(typeof(test.expect)==="undefined") {
+						expect = (typeof(suite.expect)==="function" ? suite.expect.bind(context) : suite.expect);
+					} else {
+						expect = (typeof(test.expect)==="function" ? test.expect.bind(context) : test.expect);
 					}
-					if(typeof(test.expect)!=="undefined") expect = (typeof(test.expect)==="function" ? test.expect.bind(tcontext) : test.expect);
 					try {
 						const result = f();
 						if(typeof(expect)==="undefined" || (typeof(expect)==="function" ? expect(result) : result===expect)) {
@@ -21291,23 +21537,32 @@
 				s.on('start', () => {
 				  console.log("");
 				  console.log(`Running ${sname} ...`);
+				  if(benchmarks.before) benchmarks.before.call(context);
 				  this.results = [];
 				})
-				.on('cycle', (event) =>  this.results.push(event))
+				.on('cycle', (event) =>  {
+					this.results.push(event);
+					if(benchmarks.between) benchmarks.between.call(benchmarks);
+				})
 				.on('complete', () => {
+					if(benchmarks.after) benchmarks.after.call(context);
 				   const orderedBenchmarkResults = this.results.sort((a, b) => {
 				     return a.target.hz < b.target.hz ? 1 : -1;
 				   });
 				   showResults(benchmarks,sname,orderedBenchmarkResults);
+				   completed();
 				})
 				.run({
 				  async: false
 				});
-			}
+			});
+			Promise.all(promises).then(() => {
+				if(benchmarks.end) benchmarks.end.call(benchmarks.context);
+			});
 		}
 	}
 	if(typeof(module)!=="undefined") module.exports = Benchtest;
 	if(typeof(window)!=="undefined") window.Benchtest = Benchtest;
 	
 }).call(this);
-},{"benchmark":1}]},{},[4]);
+},{"benchmark":1,"markdown-table":3}]},{},[5]);

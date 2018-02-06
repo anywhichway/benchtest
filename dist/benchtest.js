@@ -1,5 +1,6 @@
 (function() {
-	const Benchmark = require("benchmark");
+	const Benchmark = require("benchmark"),
+		Table = require("markdown-table");
 	
 	const showResults = (benchmarks,suiteName,benchmarkResults) => {
 		const suite = benchmarks.suites[suiteName];
@@ -33,7 +34,6 @@
 	  suite.results = {statistics:table.errors};
 	  
 	  if(benchmarks.log) {
-	    if(typeof(Table)!=="undefined") {
 	    	table.unshift(["Name","Ops/Sec","Margin of Error","Sample Size"]);
 	    	table = Table(table);
 	    	benchmarks.log.log(`Statistics: ${suiteName}`);
@@ -44,16 +44,6 @@
 	    		benchmarks.log.log(`Errors: ${suiteName}`);
 	    		benchmarks.log.log(errors);
 	    	}
-	    } else {
-	    	benchmarks.log.log(`Statistics: ${suiteName}`);
-	    	table = table.map(row => { return {"Name":row[0], "Ops/Sec":row[1], "Margin of Error":row[2], "Sample Size":row[3]}; });
-	    	benchmarks.log.table(table); // eslint-disable-line no-console
-	    	 if(errors.length>0) {
-	    		 benchmarks.log.log(`Errors: ${suiteName}`);
-	    		 errors = errors.map(row => { return {"Name":row[0], "Expected":row[1]+"", "Received":row[2]}; });
-	    		 benchmarks.log.table(errors);
-	    	 }
-	    }
 	  }
 	};
 
@@ -92,7 +82,7 @@
 			}
 			return object;
 		}
-		
+	
 	class Benchtest {
 		constructor(spec) {
 			this.benchmarks = deserialize(spec);
@@ -102,30 +92,34 @@
 			return serialize(this);
 		}
 		run() {
-			const benchmarks = this.benchmarks;
-			if(benchmarks.before) {
-				benchmarks.before.call(Object.assign({},benchmarks.context));
+			const benchmarks = this.benchmarks,
+				promises = [];
+			if(benchmarks.start) {
+				benchmarks.start.call(benchmarks.context);
 			}
-			for(let sname in benchmarks.suites) {
+			const suitenames = Object.keys(benchmarks.suites);
+			suitenames.forEach((sname,i) => {
 				const s = new Benchmark.Suite,
 					suite = benchmarks.suites[sname],
-					scontext = Object.assign({},benchmarks.context,suite.context);
-				for(let key in scontext) {
-					if(typeof(scontext[key])==="function") {
-						scontext[key] = scontext[key].bind(scontext);
+					context = Object.assign({},benchmarks.context,suite.context);
+				let completed;
+				promises.push(new Promise((resolve) => completed = resolve));
+				for(let key in context) {
+					const value = context[key];
+					if(typeof(value)==="function" && !value.bound) {
+						context[key] = value.bind(context);
+						context[key].bound = true;
 					}
 				}
-				let expect = (typeof(suite.expect)==="function" ? suite.expect.bind(scontext) : suite.expect);
 				for(let tname in suite.tests) {
 					const test = suite.tests[tname],
-						tcontext = Object.assign({},scontext,test.context),
-						f = test.f = test.f.bind(tcontext);
-					for(let key in tcontext) {
-						if(typeof(tcontext[key])==="function") {
-							tcontext[key] = tcontext[key].bind(tcontext);
-						}
+						f = test.f.bind(context);
+					let expect; 
+					if(typeof(test.expect)==="undefined") {
+						expect = (typeof(suite.expect)==="function" ? suite.expect.bind(context) : suite.expect);
+					} else {
+						expect = (typeof(test.expect)==="function" ? test.expect.bind(context) : test.expect);
 					}
-					if(typeof(test.expect)!=="undefined") expect = (typeof(test.expect)==="function" ? test.expect.bind(tcontext) : test.expect);
 					try {
 						const result = f();
 						if(typeof(expect)==="undefined" || (typeof(expect)==="function" ? expect(result) : result===expect)) {
@@ -140,19 +134,28 @@
 				s.on('start', () => {
 				  console.log("");
 				  console.log(`Running ${sname} ...`);
+				  if(benchmarks.before) benchmarks.before.call(context);
 				  this.results = [];
 				})
-				.on('cycle', (event) =>  this.results.push(event))
+				.on('cycle', (event) =>  {
+					this.results.push(event);
+					if(benchmarks.between) benchmarks.between.call(benchmarks);
+				})
 				.on('complete', () => {
+					if(benchmarks.after) benchmarks.after.call(context);
 				   const orderedBenchmarkResults = this.results.sort((a, b) => {
 				     return a.target.hz < b.target.hz ? 1 : -1;
 				   });
 				   showResults(benchmarks,sname,orderedBenchmarkResults);
+				   completed();
 				})
 				.run({
 				  async: false
 				});
-			}
+			});
+			Promise.all(promises).then(() => {
+				if(benchmarks.end) benchmarks.end.call(benchmarks.context);
+			});
 		}
 	}
 	if(typeof(module)!=="undefined") module.exports = Benchtest;
