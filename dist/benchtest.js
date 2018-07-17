@@ -1,153 +1,133 @@
 (function() {
-	const Benchmark = require("benchmark"),
-		Table = require("markdown-table");
-	
-	const showResults = (benchmarks,suiteName,benchmarkResults) => {
-		const suite = benchmarks.suites[suiteName],
-			results = benchmarks.results[suiteName];
-	  benchmarkResults.forEach(result => {
-	    const name = result.target.name;
-	    const opsPerSecond = result.target.hz.toLocaleString('en-US', {
-	      maximumFractionDigits: 0
-	    });
-	    const relativeMarginOferror = `+/- ${result.target.stats.rme.toFixed(2)}%`;
-	    const sampleSize = result.target.stats.sample.length;
-
-	    results.statistics.push([name, opsPerSecond, relativeMarginOferror, sampleSize]);
-	  });
-	  let expect = suite.expect;
-	  for(let name in suite.tests) {
-	  	const test = suite.tests[name];
-	  	if(!benchmarkResults.some(result => result.target.name===name)) {
-	  		results.statistics.push([name, "0", "0", "0"]);
-	  	}
-	  }
-	  
-	  if(benchmarks.log) {
-	  	 results.statistics.unshift(["Name","Ops/Sec","Margin of Error","Sample Size"]);
-	    	const statistics = Table(results.statistics);
-	    	benchmarks.log.log(`Statistics: ${suiteName}`);
-	    	benchmarks.log.log(statistics);
-	    	if(results.errors.length>0) {
-	    		results.errors.unshift(["Name","Expected","Received"]);
-	    		const errors = Table(results.errors);
-	    		benchmarks.log.log(`Errors: ${suiteName}`);
-	    		benchmarks.log.log(errors);
-	    	}
-	  }
-	};
-
-	const serialize = (data) => {
-			const type = typeof(data);
-			if(!data || ["number","string","boolean","underfined"].includes(type)) return data;
-			if(type==="function") return data+"";
-			let object = {};
-			for(let key in data) {
-				object[key] = serialize(data[key]);
-			}
-			return object;
-		},
-		deserialize = (data) => {
-			const type = typeof(data);
-			if(!data || ["number","function","boolean","underfined"].includes(type)) return data;
-			if(type==="string") {
-				let value = data;
-				try {
-					value = Function("return " + data)();
-					if(typeof(value)==="function") return value;
-				} catch(e) {
-					return value;
-				}
-			}
-			if(Array.isArray(data)) {
-				let array = [];
-				for(let item of data) {
-					array.push(deserialize(item));
-				}
-				return array;
-			}
-			let object = {};
-			for(let key in data) {
-				object[key] = deserialize(data[key]);
-			}
-			return object;
-		}
-	
-	class Benchtest {
-		constructor(spec) {
-			this.benchmarks = deserialize(spec);
-		}
-		serialize() {
-			return serialize(this);
-		}
-		run() {
-			const benchmarks = this.benchmarks,
-				promises = [];
-			benchmarks.results = {};
-			if(benchmarks.start) {
-				benchmarks.start.call(benchmarks.context);
-			}
-			const suitenames = Object.keys(benchmarks.suites);
-			suitenames.forEach((sname,i) => {
-				const s = new Benchmark.Suite,
-					suite = benchmarks.suites[sname],
-					context = Object.assign({},benchmarks.context,suite.context);
-				benchmarks.results[sname] = {statistics:[],errors:[]};
-				let completed;
-				promises.push(new Promise((resolve) => completed = resolve));
-				for(let key in context) {
-					const value = context[key];
-					if(typeof(value)==="function" && !value.bound) {
-						context[key] = value.bind(context);
-						context[key].bound = true;
-					}
-				}
-				for(let tname in suite.tests) {
-					const test = suite.tests[tname],
-						f = test.f.bind(context);
-					let expect; 
-					if(typeof(test.expect)==="undefined") {
-						expect = (typeof(suite.expect)==="function" ? suite.expect.bind(context) : suite.expect);
-					} else {
-						expect = (typeof(test.expect)==="function" ? test.expect.bind(context) : test.expect);
-					}
-					try {
-						const result = f();
-						if(typeof(expect)==="undefined" || (typeof(expect)==="function" ? expect(result) : result===expect)) {
-							s.add(tname,f);
-						} else {
-							benchmarks.results[sname].errors.push([tname, expect+"", result]);
-						}
-					} catch(e) {
-						benchmarks.results[sname].errors.push([tname, expect+"", e.message]);
-					}
-				}
-				s.on('start', () => {
-				  if(benchmarks.before) benchmarks.before.call(context,sname);
-				  this.results = [];
-				})
-				.on('cycle', (event) =>  {
-					this.results.push(event);
-					if(benchmarks.between) benchmarks.between.call(benchmarks);
-				})
-				.on('complete', () => {
-					if(benchmarks.after) benchmarks.after.call(context,sname);
-				   const orderedBenchmarkResults = this.results.sort((a, b) => {
-				     return a.target.hz < b.target.hz ? 1 : -1;
-				   });
-				   showResults(benchmarks,sname,orderedBenchmarkResults);
-				   completed();
-				})
-				.run({
-				  async: false
-				});
-			});
-			Promise.all(promises).then(() => {
-				if(benchmarks.end) benchmarks.end.call(benchmarks.context);
-			});
+	var perf = typeof(performance)!=="undefined" ? performance : null;
+	if(typeof(module)!=="undefined" && typeof(window)==="undefined") {
+		perf = {
+				now: require("performance-now")
 		}
 	}
-	if(typeof(module)!=="undefined") module.exports = Benchtest;
-	if(typeof(window)!=="undefined") window.Benchtest = Benchtest;
+	const Table = require("markdown-table"),
+		showResults = (logType,stream,results) => {
+			// add table header
+		  results.unshift(["Name","Ops/Sec","+/- Msec","Sample Size"]);
+		  if(logType==="md") {
+		  	const statistics = Table(results);
+		  	stream.log(statistics);
+		  	return;
+		  }
+	  	stream.log(results);
+		},
+		tests = [],
+		benchtest = (runner,options={}) => {
+				if(options.only) {
+					runner.on("suite", suite => {
+						suite.tests = suite.tests.reduce((accum,test) => {
+							if(benchtest.testable(test)) {
+								accum.push(test);
+							}
+							return accum;
+						},[]);
+					});
+				}
+				runner.on("pass", test => {
+					benchtest.test(test);
+				});
+				runner.on("end",() => {
+					benchtest.run(options);
+				});
+				return runner;
+		};
+	benchtest.run = async function run(runOptions) {
+		let {minCycles,maxCycles,sensitivity,log,logStream,all,off} = runOptions;
+		if(!minCycles) minCycles=10;
+		if(!maxCycles) maxCycles=100;
+		if(!sensitivity) sensitivity=.01;
+		if(!logStream) logStream=console;
+		if(minCycles>maxCycles) maxCycles = minCycles;
+		if(off) {
+			console.log("Performance testing off");
+			return;
+		}
+		this.all = all;
+		console.log("Performance testing ...");
+		// move the overhead test to the front of the queue
+		let i = tests.findIndex(test => test.title[test.title.length-2]==="#" && test.title[test.title.length-1]==="#"),
+			test = i>=0 ? tests[i] : null,
+			hasoverhead = i!==-1;
+		if(test) {
+			tests.splice(i,1);
+			tests.unshift(test)
+		}
+		const results = [],
+			elementsSeen = new Set(); // for browser unpdates
+		let overhead;
+		for(const test of tests) {
+			if(all || this.testable(test)) {
+				try {
+					const f = new Function("return " + test.body)(test.ctx);
+					let i = maxCycles,
+						j = 0,
+						duration = 0,
+						avg = 0,
+						prev = 0,
+						min = Infinity,
+						max = -Infinity;
+					while(i--) { // break after maxCycles
+						let resolved;
+						const start = perf.now(),
+								returned = f(value => resolved = value);
+						if(resolved && typeof(resolved)==="object" && resolved instanceof Error) {
+							continue; // skip error producing functions
+						}
+						j++;
+						duration = perf.now() - start;
+						min = Math.min(min,duration);
+						max = Math.max(max,duration);
+						// avoid Infinity from 0 duration
+						const avg = (j/Math.max(duration,0.005)),
+							delta = avg/prev;
+						// break when things are not changing
+						if(delta >= 1-sensitivity && delta <= 1+sensitivity && j>minCycles) break;
+						prev = avg;
+					}
+					if(hasoverhead && !overhead) {
+						test.speed = overhead = Math.round(prev*1000);
+					} else {
+						test.speed = Math.max(0,hasoverhead ? Math.round(overhead - (prev*1000)) : Math.round(prev*1000));
+					}
+					if(log) {
+						results.push([test.title,test.speed,(max-min).toPrecision(2),j])
+					}
+					if(typeof(window)!=="undefined") {
+						setTimeout(() => { // give browser time to re-draw so user can interact
+							const elements = document.getElementsByTagName("H2");
+							for(const element of elements) {
+								if(element.innerText.indexOf(test.title)===0 && !elementsSeen.has(element)) {
+									elementsSeen.add(element);
+									const speed = document.createElement("span");
+									speed.className = "speed";
+									speed.innerText = ` ${Math.round(test.speed)} sec +/- ${(max-min).toPrecision(2)} msec ${j} samples`;
+									element.insertBefore(speed,element.firstElementChild);
+									break;
+								}
+							}
+						});
+					}
+				} catch(e) {
+					console.log(e)
+				}
+			}
+		}
+		showResults(log,logStream,results);
+	}
+	benchtest.test = test => {
+		// only benchtest tests that pass
+		if(test.state==="passed") tests.push(test); 
+		return test;
+	}
+	benchtest.testable = function(test) {
+		return test.title[test.title.length-1]==="#";
+	}
+	if(typeof(module)!=="undefined") module.exports = benchtest;
+	if(typeof(window)!=="undefined") window.benchtest = benchtest;
 	
 }).call(this);

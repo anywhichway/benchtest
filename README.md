@@ -1,157 +1,124 @@
-# benchtest: Opinionated, serializable, integrated benchmarking and unit testing
+# benchtest v1.0.0
 
-Benchtest is wrapper around the superb [benchmark.js](https://github.com/bestiejs/benchmark.js) library. We needed a uniform way of representing benchmarks so that:
+Integrated performance testing for Mocha based unit testing.
 
-1) They could be easily serialized
+Benchtest provides performance testing wrapper around the [Mocha](https://mochajs.org/) unit test runner. It can be used as a light weight, but not as powerful, alternative to the stellar [benchmark.js](https://github.com/bestiejs/benchmark.js) library.
 
-2) There is less boilerplate code
+Benchtest set-up can be done in as little as three lines of code for [Node](https://nodejs.org/en/) projects.
 
-3) There is some unit test like validation to ensure benchmarks are producing correct results
+```
+const benchtest = require("benchtest");
+afterEach(function () { benchtest.test(this.currentTest); });
+after(() => benchtest.run({log:"md"}));
 
-4) Multiple suites could be clustered and run at the same time
+```
 
-5) Results are in Markdown table format for easy copy and paste.
+Afterwards a Markdown compatible table containing performance results for all successful tests similar to the one below will be printed to the console:
+
+
+| Name                                     | Ops/Sec  | +/- Msec | Sample Size |
+| ---------------------------------------- | -------- | -------- | ----------- |
+| overhead (time for () => true to run) ## | 20000000 | 0.048    | 100         |
+| random sleep done #                      | 19969098 | 1.7      | 31          |
+| random sleep Promise #                   | 19970873 | 0.77     | 29          |
+| no-op (should be at or close to zero) #  | 0        | 0.021    | 100         |
+
+
+In the browser `benchtest` requires just one line of code after loading the library! This `onload` call adds performance testing to all Mocha unit tests.
+
+```
+<body onload="benchtest(mocha.run(),{all:true})">
+```
+
+The browser results will be augmented like below:
+
+&check; overhead (time for function that does nothing to execute) ## 20000000 sec +/- 0.10 msec 100 samples
+
+&check; random sleep done # 19900000 sec +/- 2.2 msec 100 samples
+
+&check; random sleep Promise # 19857143 sec +/- 2.2 msec 100 samples
+
+&check; no-op (should be at or close to zero based on overhead) # 0 sec +/- 0.10 msec 100 samples
+
 
 # Installation
 
-npm install benchtest
+npm install benchtest --save-dev
+
+# Usage
+
+## Node
+
+Just add two global Mocha event hooks to include tests to be benchmarked and then run the benchmarks after Mocha has completed unit testing. Benchtest will automatically exclude tests that have failed.
+
+```
+const benchtest = require("benchtest");
+afterEach(function () { benchtest.test(this.currentTest); });
+after(() => benchtest.run());
+
+```
+
+Add a `#` to the end of each unit test name you wish to benchmark, or just pass `all:true` in the options to run.
+
+If there is a point at which you wish to skip all tests except benchmark tests, add this line:
+
+```
+beforeEach(function() { if(!benchtest.testable(this.currentTest)) this.currentTest.skip(); })
+```
+
+See the API section for options that can be passed to `benchtest.run()`.
+
+## Browser
+
+Load the benchtest code, `benchtest.js` located in the module `browser` subdirectory using a `script` tag. Assuming your testing is occuring from subdirectory of your project root it should look something like this:
+
+```
+<script src="../node_modules/browser/benchtest.js" type="text/javascript"></script>
+```
+
+Add this to your `onload` function or where you normally start Mocha.
+
+```
+benchtest(mocha.run());
+```
+
+Add a `#` to the end of each unit test name you wish to benchmark, or just pass `all:true` in an options object as the second argument to `benchtest`. See the API section for details.
+
 
 # API
 
-When using benchtest, all tests are represented in the context of a JavaScript object. The shape of the object is:
-
-```javascript
-{
-	name: string, // optional name
-	log: outputStream, // optional, if provided results are logged to the stream in Markdown format
-	context: { // optional, provides functions or data for suites
-		// keys with data or functions as values, "this" inside of cycle and test functions
-	},
-	start: function, // optional, runs when benchmarking starts
-	before: function(suiteName), // optional, runs when each suite starts
-	between: function, // optional, runs between each suite
-	after: function(suiteName), // optional, runs when each suite ends
-	end: function,  //optional, runs when benchmarkin is complete
-	suites: {
-		<suiteName>: {
-			context: { // optional, provides functions or data for suiteName
-				// extends/overrides parent context in before, after, and test functions
-			},
-			expect: boolean|number|string|function, // optional, used to verify tests return correct value
-			tests: {
-				<testName>: {
-					expect: value|function, // optional, overrides suite expect
-					f: function // the actual function to test and benchmark
-				}[, // optional additional tests
-				...]
-			}
-		}[, // optional additional suites
-		...]
-	},
-	results: { // generated dynamically during testing
-		<suiteName>: {
-			statistics: [
-				[<testName>,<ops/sec>,<margin of error>,<sample size>]
-				[,...]
-			],
-			errors: [
-				// if expected is a function, the function body is printed
-				[<testName>,<expected>,<received>]
-				[,...]
-			],
-		}[, // additional suite results
-		...]
-	}
-}
-```
-
-To create and run a Benchtest just pass an appropriately shaped object to the Benchtest constructor and call run:
-
-```javascript
-const benchtest = new Benchtest(<spec>).run(); // run and return the benchtest
-```
-
-To create a serializable Benchtest just call `serialize`:
-
-```javascript
-const json = new Benchtest(<spec>).serialize();
-```
-
-The Benchtest constructor will automatically deserialize:
+`Runner benchtest(mochaRunner,options={})` - Used for browser initialization of `benchtest`. The value of `mochaRunner` is the return value of `mocha.run()`. Returns `mochaRunner`. The `options` has this shape with the provided defaults:
 
 ```
-const json = new Benchtest(<spec>).serialize(),
-	benchtest = new Benchtest(json).run(); // // run and return the benchtest 
+{minCycles=10,maxCycles=100,sensitivity=.01,log="json",logStream=console,all=false,off=false}`
 ```
 
-## Example
+<ul>
+	<li>`minCycles` - The minimum number of times to run a test to assess its performance.</li>
+	<li>`maxCycles` - The maximum number of times to run a test to assess its performance.</li>
+	<li>`sensisitivity` - The value of the percentage difference (expressed as a float, i.e. .01 = 1%) between individual cycle tests at which point the test loop should exit.</li>
+	<li>`log` - The format in which to output results to the `logStream`. Valid values are `md` for Markdown and `json`.</li>
+	<li>`logStream` - The stream to which results should be sent. The stream must support the method `log`, e.g. `console.log(...)`, `logstream.log(...)`.</li>
+	<li>`all` - Whether or not to benchtest all unit tests. When all is false, those tests with names ending in `#` will be performance tested.</li>
+	<li>`only` - Tells Mocha to skip all tests except those marked for benchmarking. Supercedes `all`. <li>
+	<li>`off` - Setting to `true` will turn off benchtesting.
+</ul>
 
-```javascript
-const test = new Benchtest({
-		log: console,
-		context: {
-			value: "context value"
-		},
-		start: () => console.log("start"),
-		before: (name) => console.log(`Running ${name} ...`),
-		between: () => console.log("between suites"),
-		after: () => (name) => console.log(`Completed ${name} ...`),
-		end: () => console.log("end"),
-		suites: {
-			suiteone: {
-				expect: "context value",
-				tests: {
-					test1: {
-						f: function() { return this.value; }
-					}
-				}
-			},
-			suitetwo: {
-				// will fail due to override below
-				expect: function(value) { return value==="context value"; },
-				context: {
-					value: "context override value"
-				},
-				tests: {
-					test1: {
-						f: function() { return this.value; }
-					},
-					test2: {
-						f: function() { return "context value"; }
-					}
-				}
-			}
-		}
-	});
-test.run();
-```
+`benchtest.run(options={})` - Used for Node. The options are the same as for the browser (see above), except `only` is not supported. See the use of `beforeEach` in the Node usage section in place of `only`. Returns `undefined`.
 
-will produce
+`Test benchtest.test(unitTest)` - Used to add the `unitTest` to those to be benchmarked after Mocha has run all tests, automatically excludes failed tests. Returns the `unitTest`.
 
-```
-start
-Running suiteone ...
-between suites
-Statistics: suiteone
-| Name  | Ops/Sec    | Margin of Error | Sample Size |
-| ----- | ---------- | --------------- | ----------- |
-| test1 | 65,031,779 | +/- 1.34%       | 89          |
-Running suitetwo ...
-between suites
-Statistics: suitetwo
-| Name  | Ops/Sec    | Margin of Error | Sample Size |
-| ----- | ---------- | --------------- | ----------- |
-| test2 | 65,119,160 | +/- 3.83%       | 79          |
-| test1 | 0          | 0               | 0           |
-Errors: suitetwo
-| Name  | Expected                      | Received               |
-| ----- | ----------------------------- | ---------------------- |
-| test1 | function () { [native code] } | context override value |
-end
-```
+`boolean benchtest.testable(unitTest)` - Checks for `#` as last character in test name.
 
+# Known Issues
+
+All tests across all test suites are included in one table and test name collisions will overwrite results.
+
+Unit tests that result in rejected Promises abort the `benchtest` processing. Use `done(Error)` for all your test failures.
 
 # Release History (reverse chronological order)
+
+2018-07-17 v1.0.0 Switched from `benchmark.js` to `mocha`. Mocha is in wider use. Removed serialization. Dramatically simplified. Margin of Error now in milliseconds. Test suite divisions not currently supported, they should be run from separate files.
 
 2018-02-07 v0.0.7b BETA Adjusted results to conform better to spec.
 

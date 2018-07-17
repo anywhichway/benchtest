@@ -1,42 +1,35 @@
-var Benchtest;
-if(typeof(Benchtest)==="undefined") {
-	Benchtest = require("../src/benchtest.js");
+var mocha,
+	chai,
+	expect;
+if(typeof(window)==="undefined") {
+	chai = require("chai");
+	expect = chai.expect;
+	const benchtest = require("../index.js");
+	//beforeEach(function() { if(!benchtest.testable(this.currentTest)) this.currentTest.skip(); })
+	afterEach(function () { benchtest.test(this.currentTest); });
+	after(() => benchtest.run({log:"md"}));
 }
 
-const test = new Benchtest({
-		log: console,
-		context: {
-			value: "context value"
-		},
-		start: () => console.log("start"),
-		before: (name) => console.log(`Running ${name} ...`),
-		between: () => console.log("between suites"),
-		after: () => (name) => console.log(`Completed ${name} ...`),
-		end: () => console.log("end"),
-		suites: {
-			suiteone: {
-				expect: "context value",
-				tests: {
-					test1: {
-						f: function() { return this.value; }
-					}
-				}
-			},
-			suitetwo: {
-				// will fail due to override below
-				expect: function(value) { return value==="context value"; },
-				context: {
-					value: "context override value"
-				},
-				tests: {
-					test1: {
-						f: function() { return this.value; }
-					},
-					test2: {
-						f: function() { return "context value"; }
-					}
-				}
-			}
-		}
+
+describe("Test",function() {
+	it("overhead (time for () => true to run) ##", function(done) { done(); });
+	it("random sleep done #", function(done) { 
+		const startTime = Date.now();
+		while (Date.now() < startTime + (Math.random()*1000));
+		done();
 	});
-test.run();
+	it("random sleep Promise #", function() { 
+		return new Promise(resolve => {
+			const startTime = Date.now();
+			while (Date.now() < startTime + (Math.random()*1000));
+			resolve();
+		});
+	});
+	it("error (expected and no benchmark) #", function(done) { 
+		done(new Error("test"));
+	});
+	it("no-op (should be at or close to zero) #", function(done) { done(); });
+	it("no-benchtest", function(done) { done(); });
+});
+
+
