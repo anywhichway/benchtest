@@ -100,7 +100,7 @@ Add a `#` to the end of each unit test name you wish to benchmark, or just pass 
 	<li>`log` - The format in which to output results to the `logStream`. Valid values are `md` for Markdown and `json`.</li>
 	<li>`logStream` - The stream to which results should be sent. The stream must support the method `log`, e.g. `console.log(...)`, `logstream.log(...)`.</li>
 	<li>`all` - Whether or not to benchtest all unit tests. When all is false, those tests with names ending in `#` will be performance tested.</li>
-	<li>`only` - Tells Mocha to skip all tests except those marked for benchmarking. Supercedes `all`. <li>
+	<li>`only` - Tells Mocha to skip all tests except those marked for benchmarking. Supercedes `all`. </li>
 	<li>`off` - Setting to `true` will turn off benchtesting.
 </ul>
 
