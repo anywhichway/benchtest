@@ -5,7 +5,7 @@
   "engines": {},
   "license": "MIT",
   "scripts": {
-    "prepare": "cp ./index.js dist/benchtest.js && browserify index.js -o browser/benchtest.js && uglifyjs browser/benchtest.js -o browser/benchtest.min.js"
+    "prepare": "cp ./index.js browser/benchtest.js && uglifyjs browser/benchtest.js -o browser/benchtest.min.js"
   },
   "repository": {
     "type": "git",
