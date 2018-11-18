@@ -53,7 +53,7 @@ npm install benchtest --save-dev
 
 # Usage
 
-Whenever you do performance tests, if the code will ever be used in a browser we recommend you test across ALL browsers and not use Node.js results as a proxy. Node.js performance results are rarely the same as browsers results. In general we find Chrome fastest, Firefox next and Edge a distant third despite Microsoft's claims that Edge is the fastest.
+Whenever you do performance tests, if the code will ever be used in a browser, we recommend you test across ALL browsers and not use Node.js results as a proxy. Node.js performance results are rarely the same as browsers results. In general we find Chrome fastest, Firefox next and Edge a distant third despite Microsoft's claims that Edge is the fastest.
 
 See the test in the `test` directory for an example of how to use.
 
@@ -61,7 +61,7 @@ See the test in the `test` directory for an example of how to use.
 
 Just add two global Mocha event hooks to include tests to be benchmarked and then run the benchmarks after Mocha has completed unit testing. Benchtest will automatically exclude tests that have failed.
 
-```
+```javascript
 const benchtest = require("benchtest");
 afterEach(function () { benchtest.test(this.currentTest); });
 after(() => benchtest.run());
@@ -72,7 +72,7 @@ Add a `#` to the end of each unit test name you wish to benchmark, or just pass 
 
 If there is a point at which you wish to skip all tests except benchmark tests, add this line:
 
-```
+```javascript
 beforeEach(function() { if(!benchtest.testable(this.currentTest)) this.currentTest.skip(); })
 ```
 
@@ -82,13 +82,13 @@ See the API section for options that can be passed to `benchtest.run()`.
 
 Load the benchtest code, `benchtest.js` located in the module `browser` subdirectory using a `script` tag. Assuming your testing is occuring from subdirectory of your project root it should look something like this:
 
-```
+```html
 <script src="../node_modules/browser/benchtest.js" type="text/javascript"></script>
 ```
 
 Add this to your `onload` function or where you normally start Mocha.
 
-```
+```javascript
 benchtest(mocha.run());
 ```
 
@@ -99,7 +99,7 @@ Add a `#` to the end of each unit test name you wish to benchmark, or just pass 
 
 `Runner benchtest(mochaRunner,options={})` - Used for browser initialization of `benchtest`. The value of `mochaRunner` is the return value of `mocha.run()`. Returns `mochaRunner`. The `options` has this shape with the provided defaults:
 
-```
+```javascript
 {minCycles=10,maxCycles=100,sensitivity=.01,log="json",logStream=console,all=false,off=false,only=false}`
 ```
 
