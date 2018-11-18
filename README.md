@@ -6,7 +6,7 @@ Benchtest provides performance testing wrapper around the [Mocha](https://mochaj
 
 Benchtest set-up can be done in as little as three lines of code for [Node](https://nodejs.org/en/) projects.
 
-```
+```javascript
 const benchtest = require("benchtest");
 afterEach(function () { benchtest.test(this.currentTest); });
 after(() => benchtest.run({log:"md"}));
