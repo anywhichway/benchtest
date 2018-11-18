@@ -185,6 +185,7 @@ process.chdir = function (dir) {
 process.umask = function() { return 0; };
 
 },{}],2:[function(require,module,exports){
+(function (global){
 /*
 MIT License
 
@@ -291,6 +292,9 @@ SOFTWARE.
 			parent;
 		for(const test of tests) {
 			if(all || this.testable(test)) {
+				if(global.gc) {
+					global.gc();
+				}
 				// declare variables outside test block to minimize chance of performance impact
 				let f = registered.get(test),
 					min = Infinity,
@@ -304,10 +308,11 @@ SOFTWARE.
 					resolved,
 					returned,
 					start,
-					end,
+					end = 0,
 					done = value => { end = perf.now(); resolved = value; return value; };
 				if(!f) f = new Function("return " + test.body)(test.ctx);
-				const samples = [];
+				const samples = [],
+					begin = perf.now();
 				try {
 					while(i--) { // break after maxCycles
 						end = 0;
@@ -320,21 +325,24 @@ SOFTWARE.
 						sample++;
 						duration = (end - start) - overhead;
 						delta = Math.abs(duration - prev)/duration;
+						max = Math.max(duration,max),
+						min = Math.min(duration,min);
 						// break when things are not changing
-						if(delta < sensitivity && sample > minCycles) break;
+						if(delta <= sensitivity && sample > minCycles) break;
 						samples.push(duration)
 						prev = duration;
 					}
+					duration = ((perf.now() - begin) + (overhead * sample)) / sample;
 					// if 80% of samples have a zero duration, assume any slower are due to garbage collection
-					const zeros = samples.filter(duration => duration===0);
-					if(zeros.length/samples.length>=.80) {
-						duration = 0;
-						max = 0;
-						min = 0;
-						sample = zeros.length;
-					} else {
-						duration = samples.reduce((accum,duration) => { min = Math.min(duration,min); max = Math.max(duration,max); return accum += duration},0) / samples.length;
-					}
+				//	const zeros = samples.filter(duration => duration===0);
+					//if(zeros.length/samples.length>=.80) {
+					//	duration = 0;
+					//	max = 0;
+					//	min = 0;
+					//	sample = zeros.length;
+					//} else {
+					//	duration = samples.reduce((accum,duration) => { min = Math.min(duration,min); max = Math.max(duration,max); return accum += duration},0) / samples.length;
+					//}
 					const ops_sec = Math.round((1000/duration)),
 						plus_minus = Math.round(max-min),
 						heapused = (perf && perf.memory ? perf.memory.usedJSHeapSize : 0) - heapsize;
@@ -362,6 +370,7 @@ SOFTWARE.
 	if(typeof(window)!=="undefined") window.benchtest = benchtest;
 	
 }).call(this);
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{"markdown-table":3,"performance-now":4}],3:[function(require,module,exports){
 'use strict';
 

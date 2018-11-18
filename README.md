@@ -1,4 +1,4 @@
-# benchtest v1.2.0
+# benchtest v1.1.1
 
 Integrated performance testing for Mocha based unit testing.
 
@@ -25,6 +25,8 @@ Afterwards a Markdown compatible table containing performance results for all su
 | loop 10000 #          | Infinity | 0   | 85          |
 | use heap #            | Infinity | 0   | 96          |
 
+
+Note, the `OPs/Sec` will be `Infinity` for functions where the time to execute `maxCycles` (a start-up option defaulting to 100) takes less time than can me measured by `window.perf()` or `performance-now` for Node.js.
 
 In the browser `benchtest` requires just one line of code after loading the library! This `onload` call adds performance testing to all Mocha unit tests.
 
@@ -120,11 +122,19 @@ Add a `#` to the end of each unit test name you wish to benchmark, or just pass 
 
 `boolean benchtest.testable(unitTest)` - Checks for `#` as last character in test name.
 
+# Internals
+
+`Benchtest` runs each test `minCycles` to `maxCycles` and exits its test loop when the difference between two imemdiatly adjacent test durations is less than or equal `sensitivity`. The average execution time is then computed from the time at the very start of a test loop up to the point it exits divided by the number of cycles actually run. This avoid situations where a single function call may always or almost always take less than a millisecond. It also incorporates the fact that garbage collection in JavaScript is unmanaged and your functions may be subject to it at some point.
+
+If `global.gc` is defined as a result of starting Chrome or Node.js with `--expose-gc` flag, it will be called betwen each test-lopp to minimize garbage collection impact on actual tests.
+
 # Known Issues
 
 Unit tests that result in rejected Promises abort the `benchtest` processing. Use `done(Error)` for all your test failures.
 
 # Release History (reverse chronological order)
+
+2018-11-18 v1.1.1 Revised performance calculation so that it returns `Infinity` less often. Implemented forced garbage collection where v8 supports it.
 
 2018-11-17 v1.1.0 Test suite divisions now supported. Optimized for more precision and reduced variance across test cycles.
 
