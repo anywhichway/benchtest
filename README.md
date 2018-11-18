@@ -36,11 +36,11 @@ The browser results will be augmented like below:
 
 &check; no-op # Infinity sec +/- 0 100 samples
 
-&check; sleep 100ms # 10 sec +/- 2 11 samples108ms
+&check; sleep 100ms # 10 sec +/- 2 11 samples 108ms
 
-&check; sleep 100ms Promise # 10 sec +/- 2 11 samples101ms
+&check; sleep 100ms Promise # 10 sec +/- 2 11 samples 101ms
 
-&check; sleep random ms # 21 sec +/- 99 100 samples45ms
+&check; sleep random ms # 21 sec +/- 99 100 samples 45ms
 
 &check; loop 10000 # Infinity sec +/- 0 95 samples
 
