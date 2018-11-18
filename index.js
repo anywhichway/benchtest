@@ -2,32 +2,55 @@
 	var perf = typeof(performance)!=="undefined" ? performance : null;
 	if(typeof(module)!=="undefined" && typeof(window)==="undefined") {
 		perf = {
-				now: require("performance-now")
+				now: require("performance-now"),
+				memory: {}
 		}
+		Object.defineProperty(perf.memory,"usedJSHeapSize",{enumerable:true,configurable:true,writable:true,value:0});
 	}
 	const Table = require("markdown-table"),
 		showResults = (logType,stream,results) => {
-			// add table header
-		  results.unshift(["Name","Ops/Sec","+/- Msec","Sample Size"]);
-		  if(logType==="md") {
-		  	const statistics = Table(results);
-		  	stream.log(statistics);
-		  	return;
-		  }
-	  	stream.log(results);
+			if(typeof(window)!=="undefined") {
+				const elementsSeen = new Set();
+				results.forEach(([test,ops_sec,plus_minus,sample]) => {
+					const elements = document.getElementsByTagName("H2");
+					for(const element of [].slice.call(elements)) {
+						if(element.innerText.indexOf(test.title)===0 && !elementsSeen.has(element)) {
+							elementsSeen.add(element);
+							const span = document.createElement("span");
+							span.className = "speed";
+							span.innerText = ` ${ops_sec} sec +/- ${plus_minus} ${sample} samples`;
+							element.insertBefore(span,element.firstElementChild);
+							break;
+						}
+					}
+				});
+			}
+			if(logType) {
+				results = results.map(item => { item[0] = item[0].title; return item;});
+				// add table header
+			  results.unshift(["Name","Ops/Sec","+/-","Sample Size"]); //"Memory Used",
+			  if(logType==="md") {
+			  	const statistics = Table(results);
+			  	stream.log(statistics);
+			  	return;
+			  }
+		  	stream.log(results);
+			}
 		},
 		tests = [],
+		registered = new Map();
 		benchtest = (runner,options={}) => {
-				if(options.only) {
 					runner.on("suite", suite => {
-						suite.tests = suite.tests.reduce((accum,test) => {
-							if(benchtest.testable(test)) {
-								accum.push(test);
-							}
-							return accum;
-						},[]);
+						if(options.only) {
+							suite.tests = suite.tests.reduce((accum,test) => {
+								benchtest.register(test);
+								if(benchtest.testable(test)) {
+									accum.push(test);
+								}
+								return accum;
+							},[]);
+						}
 					});
-				}
 				runner.on("pass", test => {
 					benchtest.test(test);
 				});
@@ -36,6 +59,10 @@
 				});
 				return runner;
 		};
+	// Mocha disposes of functions after test, so we have to cache them
+	benchtest.register = function(test) {
+		registered.set(test,test.fn);
+	}
 	benchtest.run = async function run(runOptions) {
 		let {minCycles,maxCycles,sensitivity,log,logStream,all,off} = runOptions;
 		if(!minCycles) minCycles=10;
@@ -49,69 +76,63 @@
 		}
 		this.all = all;
 		console.log("Performance testing ...");
-		// move the overhead test to the front of the queue
-		let i = tests.findIndex(test => test.title[test.title.length-2]==="#" && test.title[test.title.length-1]==="#"),
-			test = i>=0 ? tests[i] : null,
-			hasoverhead = i!==-1;
-		if(test) {
-			tests.splice(i,1);
-			tests.unshift(test)
-		}
-		const results = [],
-			elementsSeen = new Set(); // for browser unpdates
-		let overhead;
+		const results = [];
+		let overhead = 0, //((start) => perf.now() - start)(perf.now()),
+			parent;
 		for(const test of tests) {
 			if(all || this.testable(test)) {
+				// declare variables outside test block to minimize chance of performance impact
+				let f = registered.get(test),
+					min = Infinity,
+					max = -Infinity,
+					prev = 0,
+					i = maxCycles,
+					sample = 0,
+					heapsize = (perf && perf.memory ? perf.memory.usedJSHeapSize : 0),
+					duration,
+					delta,
+					resolved,
+					returned,
+					start,
+					end,
+					done = value => { end = perf.now(); resolved = value; return value; };
+				if(!f) f = new Function("return " + test.body)(test.ctx);
+				const samples = [];
 				try {
-					const f = new Function("return " + test.body)(test.ctx);
-					let i = maxCycles,
-						j = 0,
-						duration = 0,
-						avg = 0,
-						prev = 0,
-						min = Infinity,
-						max = -Infinity;
 					while(i--) { // break after maxCycles
-						let resolved;
-						const start = perf.now(),
-								returned = f(value => resolved = value);
+						end = 0;
+						start = perf.now();
+						returned = await f(done);
+						if(!end) end = perf.now(); // unit test may have simply generated a resolved promise;
 						if(resolved && typeof(resolved)==="object" && resolved instanceof Error) {
-							continue; // skip error producing functions
+							throw resolved; // skip error producing functions
 						}
-						j++;
-						duration = perf.now() - start;
-						min = Math.min(min,duration);
-						max = Math.max(max,duration);
-						// avoid Infinity from 0 duration
-						const avg = (j/Math.max(duration,0.005)),
-							delta = avg/prev;
+						sample++;
+						duration = (end - start) - overhead;
+						delta = Math.abs(duration - prev)/duration;
 						// break when things are not changing
-						if(delta >= 1-sensitivity && delta <= 1+sensitivity && j>minCycles) break;
-						prev = avg;
+						if(delta < sensitivity && sample > minCycles) break;
+						samples.push(duration)
+						prev = duration;
 					}
-					if(hasoverhead && !overhead) {
-						test.speed = overhead = Math.round(prev*1000);
+					// if 80% of samples have a zero duration, assume any slower are due to garbage collection
+					const zeros = samples.filter(duration => duration===0);
+					if(zeros.length/samples.length>=.80) {
+						duration = 0;
+						max = 0;
+						min = 0;
+						sample = zeros.length;
 					} else {
-						test.speed = Math.max(0,hasoverhead ? Math.round(overhead - (prev*1000)) : Math.round(prev*1000));
+						duration = samples.reduce((accum,duration) => { min = Math.min(duration,min); max = Math.max(duration,max); return accum += duration},0) / samples.length;
 					}
-					if(log) {
-						results.push([test.title,test.speed,(max-min).toPrecision(2),j])
+					const ops_sec = Math.round((1000/duration)),
+						plus_minus = Math.round(max-min),
+						heapused = (perf && perf.memory ? perf.memory.usedJSHeapSize : 0) - heapsize;
+					if(test.parent && test.parent.title!==parent) {
+						parent = test.parent.title;
+						results.push([{title:"***"+parent}]);
 					}
-					if(typeof(window)!=="undefined") {
-						setTimeout(() => { // give browser time to re-draw so user can interact
-							const elements = document.getElementsByTagName("H2");
-							for(const element of elements) {
-								if(element.innerText.indexOf(test.title)===0 && !elementsSeen.has(element)) {
-									elementsSeen.add(element);
-									const speed = document.createElement("span");
-									speed.className = "speed";
-									speed.innerText = ` ${Math.round(test.speed)} sec +/- ${(max-min).toPrecision(2)} msec ${j} samples`;
-									element.insertBefore(speed,element.firstElementChild);
-									break;
-								}
-							}
-						});
-					}
+					results.push([test,ops_sec,plus_minus,sample]); //heapused/sample,
 				} catch(e) {
 					console.log(e)
 				}

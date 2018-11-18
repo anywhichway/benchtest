@@ -5,31 +5,45 @@ if(typeof(window)==="undefined") {
 	chai = require("chai");
 	expect = chai.expect;
 	const benchtest = require("../index.js");
-	//beforeEach(function() { if(!benchtest.testable(this.currentTest)) this.currentTest.skip(); })
+	beforeEach(function() { 
+		benchtest.register(this.currentTest); 
+		if(!benchtest.testable(this.currentTest)) {
+			this.currentTest.skip(); 
+		}
+	});
 	afterEach(function () { benchtest.test(this.currentTest); });
 	after(() => benchtest.run({log:"md"}));
 }
 
+const heap = [];
 
-describe("Test",function() {
-	it("overhead (time for () => true to run) ##", function(done) { done(); });
-	it("random sleep done #", function(done) { 
-		const startTime = Date.now();
-		while (Date.now() < startTime + (Math.random()*1000));
-		done();
-	});
-	it("random sleep Promise #", function() { 
-		return new Promise(resolve => {
+[1,2,3].forEach(num => {
+	describe("Test Suite " + num,function() {
+		it("no-op #", function no_op(done) { done(); });
+		it("sleep 100ms #", function sleep100(done) { 
 			const startTime = Date.now();
-			while (Date.now() < startTime + (Math.random()*1000));
-			resolve();
+			while (Date.now() < startTime + 100) { ; };
+			done();
 		});
+		it("sleep 100ms Promise #", function sleep100Promise() { 
+			return new Promise(resolve => {
+				const startTime = Date.now();
+				while (Date.now() < startTime + 100) { ; };
+				resolve();
+			});
+		});
+		it("sleep random ms #", function sleepRandom(done) { 
+			const startTime = Date.now(),
+				extra = (Math.random()*100);
+			while (Date.now() < startTime + extra) { ; };
+			done();
+		});
+		it("loop 10000 #", function loop10000(done) { let i=0; while(i++<10000) i++; done(); });
+		it("use heap #",function(done) {
+			heap.push(new Array(1000).fill("        "));
+			done();
+		});
+		it("no-benchtest", function(done) { done(); });
 	});
-	it("error (expected and no benchmark) #", function(done) { 
-		done(new Error("test"));
-	});
-	it("no-op (should be at or close to zero) #", function(done) { done(); });
-	it("no-benchtest", function(done) { done(); });
 });
-
 
