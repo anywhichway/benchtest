@@ -29,7 +29,6 @@
     "uglify-es": "^3.1.6"
   },
   "dependencies": {
-    "markdown-table": "^1.1.1",
     "performance-now": "^2.1.0"
   }
 }

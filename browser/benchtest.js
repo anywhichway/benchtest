@@ -210,7 +210,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 (function() {
-	var perf = typeof(performance)!=="undefined" ? performance : null;
+	let perf = typeof(performance)!=="undefined" ? performance : null;
 	if(typeof(module)!=="undefined" && typeof(window)==="undefined") {
 		perf = {
 				now: require("performance-now"),
@@ -250,36 +250,96 @@ SOFTWARE.
 		},
 		tests = [],
 		registered = new Map();
-		benchtest = (runner,options={}) => {
-					runner.on("suite", suite => {
-						if(options.only) {
-							suite.tests = suite.tests.reduce((accum,test) => {
-								benchtest.register(test);
-								if(benchtest.testable(test)) {
-									accum.push(test);
-								}
-								return accum;
-							},[]);
+		benchtest = (runner,{minCycles=10,maxCycles=100,sensitivity=.01,log="md",logStream=console,all,off,only}={}) => {
+				//const overhead = 0,
+				//	results = [];
+				/*runner.on("suite", suite => {
+					suite.tests = suite.tests.reduce((accum,test) => {
+						const fn = test.fn;
+						test.fn = fn.bind(test);
+						benchtest.register(test);
+						if(only && benchtest.testable(test)) {
+							accum.push(test);
+						} else {
+							accum.push(test);
 						}
-					});
-				runner.on("pass", test => {
-					benchtest.test(test);
-				});
-				runner.on("end",() => {
-					benchtest.run(options);
-				});
+						return accum;
+					},[]);
+				});*/
+				benchtest.options = {minCycles,maxCycles,sensitivity,log,logStream,all,off,only};
+				//runner.on("test",async test => {
+				//	return await perfTest(test,{minCycles,maxCycles,sensitivity,overhead,results});
+				//});
+				//runner.on("pass", test => {
+				//	benchtest.test(test);
+				//});
+				//runner.on("end",() => {
+					//benchtest.run(options);
+				//});
 				return runner;
 		};
+	async function perfTest(test,{minCycles,maxCycles,sensitivity,overhead=0}={}) {
+		if(!benchtest.testable(test)) return;
+		if(typeof(global)!=="undefined" && global.gc) {
+			global.gc();
+		}
+		// declare variables outside test block to minimize chance of garbage collection impact
+		let f = registered.get(test),
+			min = Infinity,
+			max = -Infinity,
+			prev = 0,
+			i = maxCycles,
+			sample = 0,
+			heapsize = (perf && perf.memory ? perf.memory.usedJSHeapSize : 0),
+			duration,
+			delta,
+			done = value => { end = perf.now(); resolved = value; return value; },
+			resolved,
+			returned,
+			start,
+			end;
+		if(!f) f = new Function("return " + test.body).call(test,test.ctx);
+		const samples = [],
+			begin = perf.now();
+		try {
+			while(i--) { // break after maxCycles
+				end = 0;
+				start = perf.now();
+				returned = await f(done);
+				if(!end) end = perf.now(); // unit test may have simply generated a resolved promise;
+				if(resolved && typeof(resolved)==="object" && resolved instanceof Error) {
+					throw resolved; // skip error producing functions
+				}
+				sample++;
+				duration = (end - start) - overhead;
+				delta = Math.abs(duration - prev)/duration;
+				max = Math.max(duration,max),
+				min = Math.min(duration,min);
+				// break when things are not changing
+				if(delta <= sensitivity && sample > minCycles) break;
+				samples.push(duration)
+				prev = duration;
+			}
+			duration = ((perf.now() - begin) + (overhead * sample)) / sample;
+			const speed = Math.round((1000/duration)),
+				variablility = Math.round(max-min)/1000,
+				heapused = (perf && perf.memory ? perf.memory.usedJSHeapSize : 0) - heapsize;
+		//	if(test.parent && test.parent.title!==parent) {
+		//		parent = test.parent.title;
+		//		results.push([{title:"***"+parent}]);
+		//	}
+			test.performance = {duration,speed,variablility,sample};
+			//results.push([test,speed,variablility,sample]); //heapused/sample,
+		} catch(e) {
+			console.log(e)
+		}
+	}
 	// Mocha disposes of functions after test, so we have to cache them
+	// We also need the test itself as the 'this' context
 	benchtest.register = function(test) {
 		registered.set(test,test.fn);
 	}
-	benchtest.run = async function run(runOptions) {
-		let {minCycles,maxCycles,sensitivity,log,logStream,all,off} = runOptions;
-		if(!minCycles) minCycles=10;
-		if(!maxCycles) maxCycles=100;
-		if(!sensitivity) sensitivity=.01;
-		if(!logStream) logStream=console;
+	benchtest.run = async function run({minCycles=10,maxCycles=100,sensitivity=.01,log="md",logStream=console,all,off}={}) {
 		if(minCycles>maxCycles) maxCycles = minCycles;
 		if(off) {
 			console.log("Performance testing off");
@@ -292,76 +352,16 @@ SOFTWARE.
 			parent;
 		for(const test of tests) {
 			if(all || this.testable(test)) {
-				if(global.gc) {
-					global.gc();
-				}
-				// declare variables outside test block to minimize chance of performance impact
-				let f = registered.get(test),
-					min = Infinity,
-					max = -Infinity,
-					prev = 0,
-					i = maxCycles,
-					sample = 0,
-					heapsize = (perf && perf.memory ? perf.memory.usedJSHeapSize : 0),
-					duration,
-					delta,
-					resolved,
-					returned,
-					start,
-					end = 0,
-					done = value => { end = perf.now(); resolved = value; return value; };
-				if(!f) f = new Function("return " + test.body)(test.ctx);
-				const samples = [],
-					begin = perf.now();
-				try {
-					while(i--) { // break after maxCycles
-						end = 0;
-						start = perf.now();
-						returned = await f(done);
-						if(!end) end = perf.now(); // unit test may have simply generated a resolved promise;
-						if(resolved && typeof(resolved)==="object" && resolved instanceof Error) {
-							throw resolved; // skip error producing functions
-						}
-						sample++;
-						duration = (end - start) - overhead;
-						delta = Math.abs(duration - prev)/duration;
-						max = Math.max(duration,max),
-						min = Math.min(duration,min);
-						// break when things are not changing
-						if(delta <= sensitivity && sample > minCycles) break;
-						samples.push(duration)
-						prev = duration;
-					}
-					duration = ((perf.now() - begin) + (overhead * sample)) / sample;
-					// if 80% of samples have a zero duration, assume any slower are due to garbage collection
-				//	const zeros = samples.filter(duration => duration===0);
-					//if(zeros.length/samples.length>=.80) {
-					//	duration = 0;
-					//	max = 0;
-					//	min = 0;
-					//	sample = zeros.length;
-					//} else {
-					//	duration = samples.reduce((accum,duration) => { min = Math.min(duration,min); max = Math.max(duration,max); return accum += duration},0) / samples.length;
-					//}
-					const ops_sec = Math.round((1000/duration)),
-						plus_minus = Math.round(max-min),
-						heapused = (perf && perf.memory ? perf.memory.usedJSHeapSize : 0) - heapsize;
-					if(test.parent && test.parent.title!==parent) {
-						parent = test.parent.title;
-						results.push([{title:"***"+parent}]);
-					}
-					results.push([test,ops_sec,plus_minus,sample]); //heapused/sample,
-				} catch(e) {
-					console.log(e)
-				}
+				await perfTest(test,{minCycles,maxCycles,sensitivity,overhead,results});
 			}
 		}
 		showResults(log,logStream,results);
 	}
 	benchtest.test = test => {
 		// only benchtest tests that pass
-		if(test.state==="passed") tests.push(test); 
-		return test;
+		//if(test.state==="passed") tests.push(test);
+		return perfTest(test,this.options);
+		//return test;
 	}
 	benchtest.testable = function(test) {
 		return test.title[test.title.length-1]==="#";

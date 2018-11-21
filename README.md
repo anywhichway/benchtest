@@ -16,17 +16,17 @@ after(() => benchtest.run({log:"md"}));
 Afterwards a Markdown compatible table containing performance results for all successful tests similar to the one below will be printed to the console:
 
 
-| Name                  | Ops/Sec  | +/- | Sample Size |
-| --------------------- | -------- | --- | ----------- |
-| no-op #               | Infinity | 0   | 99          |
-| sleep 100ms #         | 10       | 7   | 21          |
-| sleep 100ms Promise # | 10       | 26  | 21          |
-| sleep random ms #     | 21       | 96  | 35          |
-| loop 10000 #          | Infinity | 0   | 85          |
-| use heap #            | Infinity | 0   | 96          |
+| Test                  |  Ops/Sec | +/- | Sample |
+| --------------------- | --------:| ---:| ------:|
+| no-op #               | Infinity |   0 |     33 |
+| sleep 100ms #         |       10 |   0 |     20 |
+| sleep 100ms Promise # |       10 |   0 |     10 |
+| sleep random ms #     |       21 |   0 |    100 |
+| loop 100 #            |   132980 |   0 |     10 |
+| use heap #            |    36161 |   0 |    100 |
 
 
-Note, the `OPs/Sec` will be `Infinity` for functions where the time to execute `maxCycles` (a start-up option defaulting to 100) takes less time than can me measured by `window.perf()` or `performance-now` for Node.js.
+Note, the `Ops/Sec` will be `Infinity` for functions where the time to execute `maxCycles` (a start-up option defaulting to 100) takes less time than can me measured by `window.perf()` or `performance-now` for Node.js.
 
 In the browser `benchtest` requires just one line of code after loading the library! This `onload` call adds performance testing to all Mocha unit tests.
 
@@ -55,30 +55,21 @@ npm install benchtest --save-dev
 
 # Usage
 
-Whenever you do performance tests, if the code will ever be used in a browser, we recommend you test across ALL browsers and not use Node.js results as a proxy. Node.js performance results are rarely the same as browsers results. In general we find Chrome fastest, Firefox next and Edge a distant third despite Microsoft's claims that Edge is the fastest.
+Whenever you do performance tests, if the code will ever be used in a browser, we recommend you test across ALL browsers and not use Node.js results as a proxy. Node.js performance results are rarely the same as browsers results. For brwoesers, we generally find Chrome fastest, Firefox next and Edge a distant third despite Microsoft's claims that Edge is the fastest. Node.js frequently lags behind the browsers and can vary dramatically from version to version.
 
 See the test in the `test` directory for an example of how to use.
 
 ## Node
 
-Just add two global Mocha event hooks to include tests to be benchmarked and then run the benchmarks after Mocha has completed unit testing. Benchtest will automatically exclude tests that have failed.
+Just add two global Mocha event hooks. Benchtest will automatically exclude tests that fail.
 
 ```javascript
 const benchtest = require("benchtest");
-afterEach(function () { benchtest.test(this.currentTest); });
-after(() => benchtest.run());
-
+beforeEach(benchtest.test);
+after(benchtest.report);
 ```
 
-Add a `#` to the end of each unit test name you wish to benchmark, or just pass `all:true` in the options to run.
-
-If there is a point at which you wish to skip all tests except benchmark tests, add this line:
-
-```javascript
-beforeEach(function() { if(!benchtest.testable(this.currentTest)) this.currentTest.skip(); })
-```
-
-See the API section for options that can be passed to `benchtest.run()`.
+Add a `#` to the end of each unit test name you wish to benchmark. See the API section for details on cofiguration options for `benchtest`.
 
 ## Browser
 
@@ -94,15 +85,34 @@ Add this to your `onload` function or where you normally start Mocha.
 benchtest(mocha.run());
 ```
 
-Add a `#` to the end of each unit test name you wish to benchmark, or just pass `all:true` in an options object as the second argument to `benchtest`. See the API section for details.
+Add a `#` to the end of each unit test name you wish to benchmark. See the API section for details on cofiguration options for `benchtest`.
 
+## Unit Testing Performance Expectations
+
+With v2.0.0 of `benchtest` it is now possible to set expectations about performance in your unit tests. The `this` context of each unit test will be the test itself. On each test is a `performance` property having the surface `{duration:number,min:number,max:number,cycles:number}`. You can test these values like any other value inside of a test, e.g. the test below ensurses the average duration is between 99 and 101 milliseconds.
+
+```javascript
+	expect(this.performance.duration).to.be.above(99);
+	expect(this.performance.duration).to.be.below(101);
+```
 
 # API
 
-`Runner benchtest(mochaRunner,options={})` - Used for browser initialization of `benchtest`. The value of `mochaRunner` is the return value of `mocha.run()`. Returns `mochaRunner`. The `options` has this shape with the provided defaults:
+`Runner benchtest(mochaRunner,options={})` - Used for browser initialization of `benchtest`. The value of `mochaRunner` is the return value of `mocha.run()`. Returns `mochaRunner`.
+
+For the default Mocha command line test runner, the first argument will be `null`. If you build a custom runner, pass in your runner instance after call `runner.run()`:
+
+```
+const benchtest = require("benchtest");
+benchtest(null,{log:"json"}); // with the default Node.js Mocha tools, the first arg will always be null
+beforeEach(benchtest.test);
+after(benchtest.report);
+```
+
+The `options` has this shape with the provided defaults:
 
 ```javascript
-{minCycles=10,maxCycles=100,sensitivity=.01,log="json",logStream=console,all=false,off=false,only=false}`
+{minCycles=10,maxCycles=100,sensitivity=.01,log="md",logStream=console,all=false,off=false,only=false}`
 ```
 
 <ul>
@@ -111,20 +121,21 @@ Add a `#` to the end of each unit test name you wish to benchmark, or just pass 
 	<li>`sensisitivity` - The value of the percentage difference (expressed as a float, i.e. .01 = 1%) between individual cycle tests at which point the test loop should exit.</li>
 	<li>`log` - The format in which to output results to the `logStream`. Valid values are `md` for Markdown and `json`.</li>
 	<li>`logStream` - The stream to which results should be sent. The stream must support the method `log`, e.g. `console.log(...)`, `logstream.log(...)`.</li>
-	<li>`all` - Whether or not to benchtest all unit tests. When all is false, only tests with names ending in `#` will be performance tested.</li>
+	<li>`all` - Whether or not to benchtest all unit tests. When `all` is false, only tests with names ending in `#` will be performance tested.</li>
 	<li>`only` - Tells Mocha to skip all tests except those marked for benchmarking. Supercedes `all`. </li>
 	<li>`off` - Setting to `true` will turn off benchtesting.
 </ul>
 
-`benchtest.run(options={})` - Used for Node. The options are the same as for the browser (see above), except `only` is not supported. See the use of `beforeEach` in the Node usage section in place of `only`. Returns `undefined`.
+`Suite benchtest.report(suite)` - Writes the performance report for the `suite` to the log specified in the `benchtest` options using the format also specified in the options. If `suite` is not a `Suite`, uses its own tracking mechanism to get it (Mocha has no API to provide it).
 
-`Test benchtest.test(unitTest)` - Used to add the `unitTest` to those to be benchmarked after Mocha has run all tests, automatically excludes failed tests. Returns the `unitTest`.
+`Test async benchtest.test(unitTest)` - Runs performance assessment on `unitTest`, automatically excludes failed tests. If `unitTest` is not a `Test`, gets the `cuurentTest` from Mocha, if any. Returns the test.
 
 `boolean benchtest.testable(unitTest)` - Checks for `#` as last character in test name.
 
 # Internals
 
-`Benchtest` runs each test `minCycles` to `maxCycles` and exits its test loop when the difference between two imemdiatly adjacent test durations is less than or equal `sensitivity`. The average execution time is then computed from the time at the very start of a test loop up to the point it exits divided by the number of cycles actually run. This avoid situations where a single function call may always or almost always take less than a millisecond. It also incorporates the fact that garbage collection in JavaScript is unmanaged and your functions may be subject to it at some point.
+Before running each test with regular expectations, `benchtest` runs each test `minCycles` to `maxCycles` and exits its test loop when the variance percentage is than or equal `sensitivity`. The average execution time is then computed from the time at the very start of a test loop up to the point it exits divided by the number of cycles actually run. This avoids situations where a single function call may always or almost always take less than a millisecond. It also addresses the fact that garbage collection in JavaScript is unmanaged and your functions may be subject to it at some point. If more than 80% of test calls in a benchtest cycle take less that 1ms, then the speed will be reported as `Infinity` because garbage collection
+will most likely overshadow any micro-optimizations.
 
 If `global.gc` is defined as a result of starting Chrome or Node.js with `--expose-gc` flag, it will be called betwen each test-lopp to minimize garbage collection impact on actual tests.
 
@@ -133,6 +144,8 @@ If `global.gc` is defined as a result of starting Chrome or Node.js with `--expo
 Unit tests that result in rejected Promises abort the `benchtest` processing. Use `done(Error)` for all your test failures.
 
 # Release History (reverse chronological order)
+
+2018-11-21 v2.0.0 Complete re-write of internals to simplify and better use built-in Mocha capability. Performance expectations can now be checked inside of unit tests.
 
 2018-11-18 v1.1.1 Revised performance calculation so that it returns `Infinity` less often. Implemented forced garbage collection where v8 supports it.
 

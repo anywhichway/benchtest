@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 (function() {
-	var perf = typeof(performance)!=="undefined" ? performance : null;
+	let perf = typeof(performance)!=="undefined" ? performance : null;
 	if(typeof(module)!=="undefined" && typeof(window)==="undefined") {
 		perf = {
 				now: require("performance-now"),
@@ -30,150 +30,148 @@ SOFTWARE.
 		}
 		Object.defineProperty(perf.memory,"usedJSHeapSize",{enumerable:true,configurable:true,writable:true,value:0});
 	}
-	const Table = require("markdown-table"),
-		showResults = (logType,stream,results) => {
-			if(typeof(window)!=="undefined") {
-				const elementsSeen = new Set();
-				results.forEach(([test,ops_sec,plus_minus,sample]) => {
-					const elements = document.getElementsByTagName("H2");
-					for(const element of [].slice.call(elements)) {
-						if(element.innerText.indexOf(test.title)===0 && !elementsSeen.has(element)) {
-							elementsSeen.add(element);
-							const span = document.createElement("span");
-							span.className = "speed";
-							span.innerText = ` ${ops_sec} sec +/- ${plus_minus} ${sample} samples`;
-							element.insertBefore(span,element.firstElementChild);
-							break;
-						}
-					}
-				});
+	const PERFORMANCE_ACCESS_ERROR = new Error("performance access"),
+		PERFORMANCE_PROXY = new Proxy({},{
+			get(target,property) {
+				throw PERFORMANCE_ACCESS_ERROR
 			}
-			if(logType) {
-				results = results.map(item => { item[0] = item[0].title; return item;});
-				// add table header
-			  results.unshift(["Name","Ops/Sec","+/-","Sample Size"]); //"Memory Used",
-			  if(logType==="md") {
-			  	const statistics = Table(results);
-			  	stream.log(statistics);
-			  	return;
-			  }
-		  	stream.log(results);
-			}
-		},
-		tests = [],
-		registered = new Map();
-		benchtest = (runner,options={}) => {
+		});
+	const benchtest = function(runner,{minCycles=10,maxCycles=100,sensitivity=.01,log="md",logStream=console,all,off,only}={}) {
+				benchtest.options = {minCycles,maxCycles,sensitivity,log,logStream,all,off,only};
+				if(runner) {
 					runner.on("suite", suite => {
-						if(options.only) {
-							suite.tests = suite.tests.reduce((accum,test) => {
-								benchtest.register(test);
-								if(benchtest.testable(test)) {
-									accum.push(test);
-								}
-								return accum;
-							},[]);
-						}
+						beforeEach.call(suite,benchtest.test);
+						after.call(suite,benchtest.report);
 					});
-				runner.on("pass", test => {
-					benchtest.test(test);
-				});
-				runner.on("end",() => {
-					benchtest.run(options);
-				});
+					if(typeof(window!=="undefined")) {
+						runner.on("pass",function(test) {
+							if(benchtest.testable(test)) {
+								const elements = document.getElementsByTagName("H2");
+								for(const element of [].slice.call(elements)) {
+									if(element.innerText.indexOf(test.title)===0 && !ELEMENTS_SEEN.has(element)) {
+										ELEMENTS_SEEN.add(element);
+										const span = document.createElement("span"),
+											duration = test.performance.duration,
+											ops = Math.round(1000/duration),
+											variability = Math.round((test.performance.max-test.performance.min)/duration*ops);
+										span.className = "speed";
+										span.innerText = ` ${ops} sec +/- ${duration===0 && variability===Infinity ? 0 : variability} ${test.performance.cycles} samples`;
+										element.insertBefore(span,element.firstElementChild);
+										break;
+									}
+								}
+							}
+						});
+					}
+				}
 				return runner;
 		};
-	// Mocha disposes of functions after test, so we have to cache them
-	benchtest.register = function(test) {
-		registered.set(test,test.fn);
-	}
-	benchtest.run = async function run(runOptions) {
-		let {minCycles,maxCycles,sensitivity,log,logStream,all,off} = runOptions;
-		if(!minCycles) minCycles=10;
-		if(!maxCycles) maxCycles=100;
-		if(!sensitivity) sensitivity=.01;
-		if(!logStream) logStream=console;
-		if(minCycles>maxCycles) maxCycles = minCycles;
-		if(off) {
-			console.log("Performance testing off");
-			return;
-		}
-		this.all = all;
-		console.log("Performance testing ...");
-		const results = [];
-		let overhead = 0, //((start) => perf.now() - start)(perf.now()),
-			parent;
-		for(const test of tests) {
-			if(all || this.testable(test)) {
-				if(global.gc) {
-					global.gc();
-				}
-				// declare variables outside test block to minimize chance of performance impact
-				let f = registered.get(test),
-					min = Infinity,
-					max = -Infinity,
-					prev = 0,
-					i = maxCycles,
-					sample = 0,
-					heapsize = (perf && perf.memory ? perf.memory.usedJSHeapSize : 0),
-					duration,
-					delta,
-					resolved,
-					returned,
-					start,
-					end = 0,
-					done = value => { end = perf.now(); resolved = value; return value; };
-				if(!f) f = new Function("return " + test.body)(test.ctx);
-				const samples = [],
-					begin = perf.now();
-				try {
-					while(i--) { // break after maxCycles
-						end = 0;
-						start = perf.now();
-						returned = await f(done);
-						if(!end) end = perf.now(); // unit test may have simply generated a resolved promise;
-						if(resolved && typeof(resolved)==="object" && resolved instanceof Error) {
-							throw resolved; // skip error producing functions
-						}
-						sample++;
-						duration = (end - start) - overhead;
-						delta = Math.abs(duration - prev)/duration;
-						max = Math.max(duration,max),
-						min = Math.min(duration,min);
-						// break when things are not changing
-						if(delta <= sensitivity && sample > minCycles) break;
-						samples.push(duration)
-						prev = duration;
-					}
-					duration = ((perf.now() - begin) + (overhead * sample)) / sample;
-					// if 80% of samples have a zero duration, assume any slower are due to garbage collection
-				//	const zeros = samples.filter(duration => duration===0);
-					//if(zeros.length/samples.length>=.80) {
-					//	duration = 0;
-					//	max = 0;
-					//	min = 0;
-					//	sample = zeros.length;
-					//} else {
-					//	duration = samples.reduce((accum,duration) => { min = Math.min(duration,min); max = Math.max(duration,max); return accum += duration},0) / samples.length;
-					//}
-					const ops_sec = Math.round((1000/duration)),
-						plus_minus = Math.round(max-min),
-						heapused = (perf && perf.memory ? perf.memory.usedJSHeapSize : 0) - heapsize;
-					if(test.parent && test.parent.title!==parent) {
-						parent = test.parent.title;
-						results.push([{title:"***"+parent}]);
-					}
-					results.push([test,ops_sec,plus_minus,sample]); //heapused/sample,
-				} catch(e) {
-					console.log(e)
-				}
+	benchtest.options = {minCycles:10,maxCycles:100,sensitivity:.01,log:"md",logStream:console};
+	benchtest.report = function(doneOrSuite) {
+		let widths = {
+				title: 4,
+				ops: 7,
+				variability: 3,
+				cycles: 6
+		};
+		const done = typeof(doneOrSuite)==="function" ? doneOrSuite : () => {},
+				suite =  typeof(doneOrSuite)==="function" ? SUITE : doneOrSuite,
+				results = suite.tests.filter(test => test.performance!=null).map(test => {
+			const duration = test.performance.duration,
+				ops = Math.round(1000/duration)+"",
+				variability = Math.round((test.performance.max-test.performance.min)/1000)+"",
+				cycles = test.performance.cycles+"",
+				result = {title:test.title,ops,variability,cycles};
+			widths.title = Math.max(result.title.length,widths.title);
+			widths.ops = Math.max(ops.length,widths.ops);
+			widths.variability = Math.max(variability.length,widths.variability);
+			widths.cycles = Math.max(cycles.length,widths.cycles);
+			return result;
+		});
+		if(results.length>0) {
+			const {log,logStream} = benchtest.options;
+			if(log==="md") {
+				const	head = `| ${"Test".padEnd(widths.title," ")} | ${"Ops/Sec".padStart(widths.ops," ")} | ${"+/-".padStart(widths.variability," ")} | ${"Sample".padStart(widths.cycles," ")} |\n`,
+					line = `| ${"-".padEnd(widths.title,"-")} | ${"-".padEnd(widths.ops,"-")}:| ${"-".padEnd(widths.variability,"-")}:| ${"-".padEnd(widths.cycles,"-")}:|\n`,
+					body = results.reduce((accum,result) => {
+						accum += `| ${result.title.padEnd(widths.title," ")} | ${result.ops.padStart(widths.ops," ")} | ${result.variability.padStart(widths.variability," ")} | ${result.cycles.padStart(widths.cycles," ")} |\n`;
+						return accum;
+					},"")
+					logStream.log(head+line+body);
+			} else if(log==="json") {
+				logStream.log(results);
 			}
 		}
-		showResults(log,logStream,results);
-	}
-	benchtest.test = test => {
-		// only benchtest tests that pass
-		if(test.state==="passed") tests.push(test); 
-		return test;
+		done();
+	};
+	let SUITE;
+	benchtest.test = async function() {
+		const test = arguments[0] || this.currentTest; // don't move arguments[0] to an arg, it breaks Mocha
+		if(benchtest.testable(test)) {
+			// declare all variables outside test loop to reduce garbage collection impact
+			if(test.parent!==SUITE) {
+				SUITE = test.parent;
+			}
+			const {maxCycles,minCycles,sensitivity} = benchtest.options,
+				fn = test.fn;
+			let min = Infinity,
+				max = -Infinity,
+				mean,
+				variance,
+				resolved,
+				begin,
+				end = null,
+				done = value => { end = perf.now(); resolved = value; return value; },
+				duration,
+				previous = 0,
+				delta,
+				start = perf.now(),
+				cycles = 0,
+				timeout = 0,
+				perftime = Math.abs(perf.now()-perf.now());
+				computetime = 0,
+				durations = [];
+			// make test object accessable inside of test
+			test.fn = fn.bind(test);
+			// use a special proxy so that performance checks are essentailly disabled during test loop
+			test.performance = PERFORMANCE_PROXY;
+			while(++cycles<maxCycles) {
+				begin = perf.now();
+				try {
+					result = await test.fn.call(this,done);
+				} catch(e) {
+					if(e!==PERFORMANCE_ACCESS_ERROR) {
+						throw e;
+					}
+				}
+				if(end===null) end = perf.now();
+				duration = (end - begin) - perftime;
+				begin = perf.now();
+				if(timeout===0 && test._timeout>0) {
+					this.timeout(test._timeout*(maxCycles+5))
+				}
+				durations.push(duration);
+				delta = Math.abs(duration - previous) / duration;
+				max = Math.max(duration,max);
+				min = Math.min(duration,min);
+				mean = durations.reduce((accum,duration) => accum += duration,0) / durations.length;
+				variance = durations.map(duration => duration - mean).reduce((accum,duration) => accum += duration * duration,0)/durations.length;
+				// exit if sensitivity criteria met and minCycles have been run
+				if(variance / mean <= sensitivity && cycles >= minCycles) {
+					computetime += (perf.now() - begin) + perftime;
+					break;
+				}
+				if(variance / mean > 5 && cycles >= minCycles) {
+					durations.pop(); // throw out probable GC
+				} else {
+					previous = duration;
+				}
+				end = null;
+				computetime += (perf.now() - begin) + perftime;
+			}
+			duration = durations.filter(duration => duration<=0).length / durations.length >= 0.8 ? 0 : (perf.now() - start - computetime - perftime) / cycles;
+			test.performance = {cycles,duration,min,max};
+		}
 	}
 	benchtest.testable = function(test) {
 		return test.title[test.title.length-1]==="#";

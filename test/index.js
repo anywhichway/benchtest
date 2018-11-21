@@ -5,30 +5,40 @@ if(typeof(window)==="undefined") {
 	chai = require("chai");
 	expect = chai.expect;
 	const benchtest = require("../index.js");
-	beforeEach(function() { 
-		benchtest.register(this.currentTest); 
-		if(!benchtest.testable(this.currentTest)) {
-			this.currentTest.skip(); 
-		}
-	});
-	afterEach(function () { benchtest.test(this.currentTest); });
-	after(() => benchtest.run({log:"md"}));
+	beforeEach(benchtest.test);
+	after(benchtest.report);
 }
 
 const heap = [];
 
-[1,2,3].forEach(num => {
+let perf = typeof(performance)!=="undefined" ? performance : null;
+if(typeof(module)!=="undefined" && typeof(window)==="undefined") {
+	perf = {
+			now: require("performance-now"),
+			memory: {}
+	}
+	Object.defineProperty(perf.memory,"usedJSHeapSize",{enumerable:true,configurable:true,writable:true,value:0});
+}
+const ELEMENTS_SEEN = new Set();
+
+[1].forEach(num => {
 	describe("Test Suite " + num,function() {
 		it("no-op #", function no_op(done) { done(); });
 		it("sleep 100ms #", function sleep100(done) { 
+			this.timeout(101);
 			const startTime = Date.now();
 			while (Date.now() < startTime + 100) { ; };
+			expect(this.performance.duration).to.be.above(99);
+			expect(this.performance.duration).to.be.below(101);
 			done();
 		});
 		it("sleep 100ms Promise #", function sleep100Promise() { 
+			this.timeout(101);
 			return new Promise(resolve => {
 				const startTime = Date.now();
 				while (Date.now() < startTime + 100) { ; };
+				expect(this.performance.duration).to.be.above(99);
+				expect(this.performance.duration).to.be.below(101);
 				resolve();
 			});
 		});
@@ -38,7 +48,7 @@ const heap = [];
 			while (Date.now() < startTime + extra) { ; };
 			done();
 		});
-		it("loop 10000 #", function loop10000(done) { let i=0; while(i++<10000) i++; done(); });
+		it("loop 100 #", function loop100(done) { let i=0; while(i++<100) i++; done(); });
 		it("use heap #",function(done) {
 			heap.push(new Array(1000).fill("        "));
 			done();
