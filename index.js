@@ -30,14 +30,15 @@ SOFTWARE.
 		}
 		Object.defineProperty(perf.memory,"usedJSHeapSize",{enumerable:true,configurable:true,writable:true,value:0});
 	}
-	const PERFORMANCE_ACCESS_ERROR = new Error("performance access"),
+	const ELEMENTS_SEEN = new Set(),
+		PERFORMANCE_ACCESS_ERROR = new Error("performance access"),
 		PERFORMANCE_PROXY = new Proxy({},{
 			get(target,property) {
 				throw PERFORMANCE_ACCESS_ERROR
 			}
 		});
 	const benchtest = function(runner,{minCycles=10,maxCycles=100,sensitivity=.01,log="md",logStream=console,all,off,only}={}) {
-				benchtest.options = {minCycles,maxCycles,sensitivity,log,logStream,all,off,only};
+				benchtest.options = {minCycles:Math.min(minCycles,maxCycles),maxCycles,sensitivity,log,logStream,all,off,only};
 				if(runner) {
 					runner.on("suite", suite => {
 						beforeEach.call(suite,benchtest.test);
@@ -75,8 +76,9 @@ SOFTWARE.
 				cycles: 6
 		};
 		const done = typeof(doneOrSuite)==="function" ? doneOrSuite : () => {},
-				suite =  typeof(doneOrSuite)==="function" ? SUITE : doneOrSuite,
-				results = suite.tests.filter(test => test.performance!=null).map(test => {
+				suite =  typeof(doneOrSuite)==="function" ? SUITE : doneOrSuite;
+		if(!suite || !suite.tests) return;
+		const results = suite.tests.filter(test => test.performance!=null).map(test => {
 			const duration = test.performance.duration,
 				ops = Math.round(1000/duration)+"",
 				variability = Math.round((test.performance.max-test.performance.min)/1000)+"",

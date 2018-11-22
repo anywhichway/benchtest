@@ -1,4 +1,4 @@
-# benchtest v2.0.0
+# benchtest v2.0.1
 
 Integrated performance testing for Mocha based unit testing.
 
@@ -144,6 +144,8 @@ If `global.gc` is defined as a result of starting Chrome or Node.js with `--expo
 Unit tests that result in rejected Promises abort the `benchtest` processing. Use `done(Error)` for all your test failures.
 
 # Release History (reverse chronological order)
+
+2018-11-22 v2.0.1 Fixed edge case reporting error where bechtest is used but no tests are benchmarked.
 
 2018-11-21 v2.0.0 Complete re-write of internals to simplify and better use built-in Mocha capability. Performance expectations can now be checked inside of unit tests.
 

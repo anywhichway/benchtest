@@ -185,7 +185,6 @@ process.chdir = function (dir) {
 process.umask = function() { return 0; };
 
 },{}],2:[function(require,module,exports){
-(function (global){
 /*
 MIT License
 
@@ -218,150 +217,148 @@ SOFTWARE.
 		}
 		Object.defineProperty(perf.memory,"usedJSHeapSize",{enumerable:true,configurable:true,writable:true,value:0});
 	}
-	const Table = require("markdown-table"),
-		showResults = (logType,stream,results) => {
-			if(typeof(window)!=="undefined") {
-				const elementsSeen = new Set();
-				results.forEach(([test,ops_sec,plus_minus,sample]) => {
-					const elements = document.getElementsByTagName("H2");
-					for(const element of [].slice.call(elements)) {
-						if(element.innerText.indexOf(test.title)===0 && !elementsSeen.has(element)) {
-							elementsSeen.add(element);
-							const span = document.createElement("span");
-							span.className = "speed";
-							span.innerText = ` ${ops_sec} sec +/- ${plus_minus} ${sample} samples`;
-							element.insertBefore(span,element.firstElementChild);
-							break;
-						}
-					}
-				});
+	const PERFORMANCE_ACCESS_ERROR = new Error("performance access"),
+		PERFORMANCE_PROXY = new Proxy({},{
+			get(target,property) {
+				throw PERFORMANCE_ACCESS_ERROR
 			}
-			if(logType) {
-				results = results.map(item => { item[0] = item[0].title; return item;});
-				// add table header
-			  results.unshift(["Name","Ops/Sec","+/-","Sample Size"]); //"Memory Used",
-			  if(logType==="md") {
-			  	const statistics = Table(results);
-			  	stream.log(statistics);
-			  	return;
-			  }
-		  	stream.log(results);
-			}
-		},
-		tests = [],
-		registered = new Map();
-		benchtest = (runner,{minCycles=10,maxCycles=100,sensitivity=.01,log="md",logStream=console,all,off,only}={}) => {
-				//const overhead = 0,
-				//	results = [];
-				/*runner.on("suite", suite => {
-					suite.tests = suite.tests.reduce((accum,test) => {
-						const fn = test.fn;
-						test.fn = fn.bind(test);
-						benchtest.register(test);
-						if(only && benchtest.testable(test)) {
-							accum.push(test);
-						} else {
-							accum.push(test);
-						}
-						return accum;
-					},[]);
-				});*/
+		});
+	const benchtest = function(runner,{minCycles=10,maxCycles=100,sensitivity=.01,log="md",logStream=console,all,off,only}={}) {
 				benchtest.options = {minCycles,maxCycles,sensitivity,log,logStream,all,off,only};
-				//runner.on("test",async test => {
-				//	return await perfTest(test,{minCycles,maxCycles,sensitivity,overhead,results});
-				//});
-				//runner.on("pass", test => {
-				//	benchtest.test(test);
-				//});
-				//runner.on("end",() => {
-					//benchtest.run(options);
-				//});
+				if(runner) {
+					runner.on("suite", suite => {
+						beforeEach.call(suite,benchtest.test);
+						after.call(suite,benchtest.report);
+					});
+					if(typeof(window!=="undefined")) {
+						runner.on("pass",function(test) {
+							if(benchtest.testable(test)) {
+								const elements = document.getElementsByTagName("H2");
+								for(const element of [].slice.call(elements)) {
+									if(element.innerText.indexOf(test.title)===0 && !ELEMENTS_SEEN.has(element)) {
+										ELEMENTS_SEEN.add(element);
+										const span = document.createElement("span"),
+											duration = test.performance.duration,
+											ops = Math.round(1000/duration),
+											variability = Math.round((test.performance.max-test.performance.min)/duration*ops);
+										span.className = "speed";
+										span.innerText = ` ${ops} sec +/- ${duration===0 && variability===Infinity ? 0 : variability} ${test.performance.cycles} samples`;
+										element.insertBefore(span,element.firstElementChild);
+										break;
+									}
+								}
+							}
+						});
+					}
+				}
 				return runner;
 		};
-	async function perfTest(test,{minCycles,maxCycles,sensitivity,overhead=0}={}) {
-		if(!benchtest.testable(test)) return;
-		if(typeof(global)!=="undefined" && global.gc) {
-			global.gc();
+	benchtest.options = {minCycles:10,maxCycles:100,sensitivity:.01,log:"md",logStream:console};
+	benchtest.report = function(doneOrSuite) {
+		let widths = {
+				title: 4,
+				ops: 7,
+				variability: 3,
+				cycles: 6
+		};
+		const done = typeof(doneOrSuite)==="function" ? doneOrSuite : () => {},
+				suite =  typeof(doneOrSuite)==="function" ? SUITE : doneOrSuite,
+				results = suite.tests.filter(test => test.performance!=null).map(test => {
+			const duration = test.performance.duration,
+				ops = Math.round(1000/duration)+"",
+				variability = Math.round((test.performance.max-test.performance.min)/1000)+"",
+				cycles = test.performance.cycles+"",
+				result = {title:test.title,ops,variability,cycles};
+			widths.title = Math.max(result.title.length,widths.title);
+			widths.ops = Math.max(ops.length,widths.ops);
+			widths.variability = Math.max(variability.length,widths.variability);
+			widths.cycles = Math.max(cycles.length,widths.cycles);
+			return result;
+		});
+		if(results.length>0) {
+			const {log,logStream} = benchtest.options;
+			if(log==="md") {
+				const	head = `| ${"Test".padEnd(widths.title," ")} | ${"Ops/Sec".padStart(widths.ops," ")} | ${"+/-".padStart(widths.variability," ")} | ${"Sample".padStart(widths.cycles," ")} |\n`,
+					line = `| ${"-".padEnd(widths.title,"-")} | ${"-".padEnd(widths.ops,"-")}:| ${"-".padEnd(widths.variability,"-")}:| ${"-".padEnd(widths.cycles,"-")}:|\n`,
+					body = results.reduce((accum,result) => {
+						accum += `| ${result.title.padEnd(widths.title," ")} | ${result.ops.padStart(widths.ops," ")} | ${result.variability.padStart(widths.variability," ")} | ${result.cycles.padStart(widths.cycles," ")} |\n`;
+						return accum;
+					},"")
+					logStream.log(head+line+body);
+			} else if(log==="json") {
+				logStream.log(results);
+			}
 		}
-		// declare variables outside test block to minimize chance of garbage collection impact
-		let f = registered.get(test),
-			min = Infinity,
-			max = -Infinity,
-			prev = 0,
-			i = maxCycles,
-			sample = 0,
-			heapsize = (perf && perf.memory ? perf.memory.usedJSHeapSize : 0),
-			duration,
-			delta,
-			done = value => { end = perf.now(); resolved = value; return value; },
-			resolved,
-			returned,
-			start,
-			end;
-		if(!f) f = new Function("return " + test.body).call(test,test.ctx);
-		const samples = [],
-			begin = perf.now();
-		try {
-			while(i--) { // break after maxCycles
-				end = 0;
-				start = perf.now();
-				returned = await f(done);
-				if(!end) end = perf.now(); // unit test may have simply generated a resolved promise;
-				if(resolved && typeof(resolved)==="object" && resolved instanceof Error) {
-					throw resolved; // skip error producing functions
+		done();
+	};
+	let SUITE;
+	benchtest.test = async function() {
+		const test = arguments[0] || this.currentTest; // don't move arguments[0] to an arg, it breaks Mocha
+		if(benchtest.testable(test)) {
+			// declare all variables outside test loop to reduce garbage collection impact
+			if(test.parent!==SUITE) {
+				SUITE = test.parent;
+			}
+			const {maxCycles,minCycles,sensitivity} = benchtest.options,
+				fn = test.fn;
+			let min = Infinity,
+				max = -Infinity,
+				mean,
+				variance,
+				resolved,
+				begin,
+				end = null,
+				done = value => { end = perf.now(); resolved = value; return value; },
+				duration,
+				previous = 0,
+				delta,
+				start = perf.now(),
+				cycles = 0,
+				timeout = 0,
+				perftime = Math.abs(perf.now()-perf.now());
+				computetime = 0,
+				durations = [];
+			// make test object accessable inside of test
+			test.fn = fn.bind(test);
+			// use a special proxy so that performance checks are essentailly disabled during test loop
+			test.performance = PERFORMANCE_PROXY;
+			while(++cycles<maxCycles) {
+				begin = perf.now();
+				try {
+					result = await test.fn.call(this,done);
+				} catch(e) {
+					if(e!==PERFORMANCE_ACCESS_ERROR) {
+						throw e;
+					}
 				}
-				sample++;
-				duration = (end - start) - overhead;
-				delta = Math.abs(duration - prev)/duration;
-				max = Math.max(duration,max),
+				if(end===null) end = perf.now();
+				duration = (end - begin) - perftime;
+				begin = perf.now();
+				if(timeout===0 && test._timeout>0) {
+					this.timeout(test._timeout*(maxCycles+5))
+				}
+				durations.push(duration);
+				delta = Math.abs(duration - previous) / duration;
+				max = Math.max(duration,max);
 				min = Math.min(duration,min);
-				// break when things are not changing
-				if(delta <= sensitivity && sample > minCycles) break;
-				samples.push(duration)
-				prev = duration;
+				mean = durations.reduce((accum,duration) => accum += duration,0) / durations.length;
+				variance = durations.map(duration => duration - mean).reduce((accum,duration) => accum += duration * duration,0)/durations.length;
+				// exit if sensitivity criteria met and minCycles have been run
+				if(variance / mean <= sensitivity && cycles >= minCycles) {
+					computetime += (perf.now() - begin) + perftime;
+					break;
+				}
+				if(variance / mean > 5 && cycles >= minCycles) {
+					durations.pop(); // throw out probable GC
+				} else {
+					previous = duration;
+				}
+				end = null;
+				computetime += (perf.now() - begin) + perftime;
 			}
-			duration = ((perf.now() - begin) + (overhead * sample)) / sample;
-			const speed = Math.round((1000/duration)),
-				variablility = Math.round(max-min)/1000,
-				heapused = (perf && perf.memory ? perf.memory.usedJSHeapSize : 0) - heapsize;
-		//	if(test.parent && test.parent.title!==parent) {
-		//		parent = test.parent.title;
-		//		results.push([{title:"***"+parent}]);
-		//	}
-			test.performance = {duration,speed,variablility,sample};
-			//results.push([test,speed,variablility,sample]); //heapused/sample,
-		} catch(e) {
-			console.log(e)
+			duration = durations.filter(duration => duration<=0).length / durations.length >= 0.8 ? 0 : (perf.now() - start - computetime - perftime) / cycles;
+			test.performance = {cycles,duration,min,max};
 		}
-	}
-	// Mocha disposes of functions after test, so we have to cache them
-	// We also need the test itself as the 'this' context
-	benchtest.register = function(test) {
-		registered.set(test,test.fn);
-	}
-	benchtest.run = async function run({minCycles=10,maxCycles=100,sensitivity=.01,log="md",logStream=console,all,off}={}) {
-		if(minCycles>maxCycles) maxCycles = minCycles;
-		if(off) {
-			console.log("Performance testing off");
-			return;
-		}
-		this.all = all;
-		console.log("Performance testing ...");
-		const results = [];
-		let overhead = 0, //((start) => perf.now() - start)(perf.now()),
-			parent;
-		for(const test of tests) {
-			if(all || this.testable(test)) {
-				await perfTest(test,{minCycles,maxCycles,sensitivity,overhead,results});
-			}
-		}
-		showResults(log,logStream,results);
-	}
-	benchtest.test = test => {
-		// only benchtest tests that pass
-		//if(test.state==="passed") tests.push(test);
-		return perfTest(test,this.options);
-		//return test;
 	}
 	benchtest.testable = function(test) {
 		return test.title[test.title.length-1]==="#";
@@ -370,260 +367,7 @@ SOFTWARE.
 	if(typeof(window)!=="undefined") window.benchtest = benchtest;
 	
 }).call(this);
-}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"markdown-table":3,"performance-now":4}],3:[function(require,module,exports){
-'use strict';
-
-/* Expose. */
-module.exports = markdownTable;
-
-/* Expressions. */
-var EXPRESSION_DOT = /\./;
-var EXPRESSION_LAST_DOT = /\.[^.]*$/;
-
-/* Allowed alignment values. */
-var LEFT = 'l';
-var RIGHT = 'r';
-var CENTER = 'c';
-var DOT = '.';
-var NULL = '';
-
-var ALLIGNMENT = [LEFT, RIGHT, CENTER, DOT, NULL];
-var MIN_CELL_SIZE = 3;
-
-/* Characters. */
-var COLON = ':';
-var DASH = '-';
-var PIPE = '|';
-var SPACE = ' ';
-var NEW_LINE = '\n';
-
-/* Create a table from a matrix of strings. */
-function markdownTable(table, options) {
-  var settings = options || {};
-  var delimiter = settings.delimiter;
-  var start = settings.start;
-  var end = settings.end;
-  var alignment = settings.align;
-  var calculateStringLength = settings.stringLength || lengthNoop;
-  var cellCount = 0;
-  var rowIndex = -1;
-  var rowLength = table.length;
-  var sizes = [];
-  var align;
-  var rule;
-  var rows;
-  var row;
-  var cells;
-  var index;
-  var position;
-  var size;
-  var value;
-  var spacing;
-  var before;
-  var after;
-
-  alignment = alignment ? alignment.concat() : [];
-
-  if (delimiter === null || delimiter === undefined) {
-    delimiter = SPACE + PIPE + SPACE;
-  }
-
-  if (start === null || start === undefined) {
-    start = PIPE + SPACE;
-  }
-
-  if (end === null || end === undefined) {
-    end = SPACE + PIPE;
-  }
-
-  while (++rowIndex < rowLength) {
-    row = table[rowIndex];
-
-    index = -1;
-
-    if (row.length > cellCount) {
-      cellCount = row.length;
-    }
-
-    while (++index < cellCount) {
-      position = row[index] ? dotindex(row[index]) : null;
-
-      if (!sizes[index]) {
-        sizes[index] = MIN_CELL_SIZE;
-      }
-
-      if (position > sizes[index]) {
-        sizes[index] = position;
-      }
-    }
-  }
-
-  if (typeof alignment === 'string') {
-    alignment = pad(cellCount, alignment).split('');
-  }
-
-  /* Make sure only valid alignments are used. */
-  index = -1;
-
-  while (++index < cellCount) {
-    align = alignment[index];
-
-    if (typeof align === 'string') {
-      align = align.charAt(0).toLowerCase();
-    }
-
-    if (ALLIGNMENT.indexOf(align) === -1) {
-      align = NULL;
-    }
-
-    alignment[index] = align;
-  }
-
-  rowIndex = -1;
-  rows = [];
-
-  while (++rowIndex < rowLength) {
-    row = table[rowIndex];
-
-    index = -1;
-    cells = [];
-
-    while (++index < cellCount) {
-      value = row[index];
-
-      value = stringify(value);
-
-      if (alignment[index] === DOT) {
-        position = dotindex(value);
-
-        size = sizes[index] +
-          (EXPRESSION_DOT.test(value) ? 0 : 1) -
-          (calculateStringLength(value) - position);
-
-        cells[index] = value + pad(size - 1);
-      } else {
-        cells[index] = value;
-      }
-    }
-
-    rows[rowIndex] = cells;
-  }
-
-  sizes = [];
-  rowIndex = -1;
-
-  while (++rowIndex < rowLength) {
-    cells = rows[rowIndex];
-
-    index = -1;
-
-    while (++index < cellCount) {
-      value = cells[index];
-
-      if (!sizes[index]) {
-        sizes[index] = MIN_CELL_SIZE;
-      }
-
-      size = calculateStringLength(value);
-
-      if (size > sizes[index]) {
-        sizes[index] = size;
-      }
-    }
-  }
-
-  rowIndex = -1;
-
-  while (++rowIndex < rowLength) {
-    cells = rows[rowIndex];
-
-    index = -1;
-
-    if (settings.pad !== false) {
-      while (++index < cellCount) {
-        value = cells[index];
-
-        position = sizes[index] - (calculateStringLength(value) || 0);
-        spacing = pad(position);
-
-        if (alignment[index] === RIGHT || alignment[index] === DOT) {
-          value = spacing + value;
-        } else if (alignment[index] === CENTER) {
-          position /= 2;
-
-          if (position % 1 === 0) {
-            before = position;
-            after = position;
-          } else {
-            before = position + 0.5;
-            after = position - 0.5;
-          }
-
-          value = pad(before) + value + pad(after);
-        } else {
-          value += spacing;
-        }
-
-        cells[index] = value;
-      }
-    }
-
-    rows[rowIndex] = cells.join(delimiter);
-  }
-
-  if (settings.rule !== false) {
-    index = -1;
-    rule = [];
-
-    while (++index < cellCount) {
-      /* When `pad` is false, make the rule the same size as the first row. */
-      if (settings.pad === false) {
-        value = table[0][index];
-        spacing = calculateStringLength(stringify(value));
-        spacing = spacing > MIN_CELL_SIZE ? spacing : MIN_CELL_SIZE;
-      } else {
-        spacing = sizes[index];
-      }
-
-      align = alignment[index];
-
-      /* When `align` is left, don't add colons. */
-      value = align === RIGHT || align === NULL ? DASH : COLON;
-      value += pad(spacing - 2, DASH);
-      value += align !== LEFT && align !== NULL ? COLON : DASH;
-
-      rule[index] = value;
-    }
-
-    rows.splice(1, 0, rule.join(delimiter));
-  }
-
-  return start + rows.join(end + NEW_LINE + start) + end;
-}
-
-function stringify(value) {
-  return (value === null || value === undefined) ? '' : String(value);
-}
-
-/* Get the length of `value`. */
-function lengthNoop(value) {
-  return String(value).length;
-}
-
-/* Get a string consisting of `length` `character`s. */
-function pad(length, character) {
-  return Array(length + 1).join(character || SPACE);
-}
-
-/* Get the position of the last dot in `value`. */
-function dotindex(value) {
-  var match = EXPRESSION_LAST_DOT.exec(value);
-
-  return match ? match.index + 1 : value.length;
-}
-
-},{}],4:[function(require,module,exports){
+},{"performance-now":3}],3:[function(require,module,exports){
 (function (process){
 // Generated by CoffeeScript 1.12.2
 (function() {
