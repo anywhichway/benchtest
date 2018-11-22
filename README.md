@@ -1,4 +1,4 @@
-# benchtest v1.1.1
+# benchtest v2.0.0
 
 Integrated performance testing for Mocha based unit testing.
 
