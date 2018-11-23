@@ -38,65 +38,74 @@ SOFTWARE.
 			}
 		});
 	const benchtest = function(runner,{minCycles=10,maxCycles=100,sensitivity=.01,log="md",logStream=console,all,off,only}={}) {
-				benchtest.options = {minCycles:Math.min(minCycles,maxCycles),maxCycles,sensitivity,log,logStream,all,off,only};
-				if(runner) {
-					runner.on("suite", suite => {
-						beforeEach.call(suite,benchtest.test);
-						after.call(suite,benchtest.report);
-					});
-					if(typeof(window!=="undefined")) {
-						runner.on("pass",function(test) {
-							if(benchtest.testable(test)) {
-								const elements = document.getElementsByTagName("H2");
-								for(const element of [].slice.call(elements)) {
-									if(element.innerText.indexOf(test.title)===0 && !ELEMENTS_SEEN.has(element)) {
-										ELEMENTS_SEEN.add(element);
-										const span = document.createElement("span"),
-											duration = test.performance.duration,
-											ops = Math.round(1000/duration),
-											variability = Math.round((test.performance.max-test.performance.min)/duration*ops);
-										span.className = "speed";
-										span.innerText = ` ${ops} sec +/- ${duration===0 && variability===Infinity ? 0 : variability} ${test.performance.cycles} samples`;
-										element.insertBefore(span,element.firstElementChild);
-										break;
-									}
-								}
+		benchtest.options = {minCycles:Math.min(minCycles,maxCycles),maxCycles,sensitivity,log,logStream,all,off,only};
+		if(runner) {
+			runner.on("suite", suite => {
+				beforeEach.call(suite,benchtest.test);
+				after.call(suite,benchtest.report);
+			});
+			if(typeof(window!=="undefined")) {
+				runner.on("pass",function(test) {
+					if(benchtest.testable(test)) {
+						const elements = document.getElementsByTagName("H2");
+						for(const element of [].slice.call(elements)) {
+							if(element.innerText.indexOf(test.title)===0 && !ELEMENTS_SEEN.has(element)) {
+								ELEMENTS_SEEN.add(element);
+								const span = document.createElement("span"),
+									duration = test.performance.duration,
+									ops = Math.round(1000/duration),
+									variability = Math.round(test.performance.sensitivity*10000/duration)+"",
+									max = Math.round(1000/test.performance.min)+"",
+									min = Math.round(1000/test.performance.max)+"";
+								span.className = "speed";
+								span.innerText = ` ${ops} sec +/- ${duration===0 && variability===Infinity ? 0 : variability} min: ${min} max: ${max} ${test.performance.cycles} samples`;
+								element.insertBefore(span,element.firstElementChild);
+								break;
 							}
-						});
+						}
 					}
-				}
-				return runner;
-		};
+				});
+			}
+		}
+		return runner;
+	};
 	benchtest.options = {minCycles:10,maxCycles:100,sensitivity:.01,log:"md",logStream:console};
 	benchtest.report = function(doneOrSuite) {
 		let widths = {
 				title: 4,
 				ops: 7,
 				variability: 3,
+				min: 3,
+				max: 3,
 				cycles: 6
 		};
 		const done = typeof(doneOrSuite)==="function" ? doneOrSuite : () => {},
 				suite =  typeof(doneOrSuite)==="function" ? SUITE : doneOrSuite;
 		if(!suite || !suite.tests) return;
+		widths.title = Math.max(suite.title.length,4);
 		const results = suite.tests.filter(test => test.performance!=null).map(test => {
 			const duration = test.performance.duration,
 				ops = Math.round(1000/duration)+"",
-				variability = Math.round((test.performance.max-test.performance.min)/1000)+"",
+				variability = Math.round(test.performance.sensitivity*10000/duration)+"",
+				max = Math.round(1000/test.performance.min)+"",
+				min = Math.round(1000/test.performance.max)+"",
 				cycles = test.performance.cycles+"",
-				result = {title:test.title,ops,variability,cycles};
+				result = {title:test.title,ops,variability,cycles,min,max};
 			widths.title = Math.max(result.title.length,widths.title);
 			widths.ops = Math.max(ops.length,widths.ops);
 			widths.variability = Math.max(variability.length,widths.variability);
+			widths.min = Math.max(min.length,widths.min);
+			widths.max = Math.max(max.length,widths.max);
 			widths.cycles = Math.max(cycles.length,widths.cycles);
 			return result;
 		});
 		if(results.length>0) {
 			const {log,logStream} = benchtest.options;
 			if(log==="md") {
-				const	head = `| ${"Test".padEnd(widths.title," ")} | ${"Ops/Sec".padStart(widths.ops," ")} | ${"+/-".padStart(widths.variability," ")} | ${"Sample".padStart(widths.cycles," ")} |\n`,
-					line = `| ${"-".padEnd(widths.title,"-")} | ${"-".padEnd(widths.ops,"-")}:| ${"-".padEnd(widths.variability,"-")}:| ${"-".padEnd(widths.cycles,"-")}:|\n`,
+				const	head = `| ${suite.title.padEnd(widths.title," ")} | ${"Ops/Sec".padStart(widths.ops," ")} | ${"+/-".padStart(widths.variability," ")} | ${"Min".padStart(widths.min," ")} | ${"Max".padStart(widths.max," ")} | ${"Sample".padStart(widths.cycles," ")} |\n`,
+					line = `| ${"-".padEnd(widths.title,"-")} | ${"-".padEnd(widths.ops,"-")}:| ${"-".padEnd(widths.variability,"-")}:| ${"-".padEnd(widths.min,"-")}:| ${"-".padEnd(widths.max,"-")}:| ${"-".padEnd(widths.cycles,"-")}:|\n`,
 					body = results.reduce((accum,result) => {
-						accum += `| ${result.title.padEnd(widths.title," ")} | ${result.ops.padStart(widths.ops," ")} | ${result.variability.padStart(widths.variability," ")} | ${result.cycles.padStart(widths.cycles," ")} |\n`;
+						accum += `| ${result.title.padEnd(widths.title," ")} | ${result.ops.padStart(widths.ops," ")} | ${result.variability.padStart(widths.variability," ")} | ${result.min.padStart(widths.min," ")} | ${result.max.padStart(widths.max," ")} | ${result.cycles.padStart(widths.cycles," ")} |\n`;
 						return accum;
 					},"")
 					logStream.log(head+line+body);
@@ -147,7 +156,7 @@ SOFTWARE.
 					}
 				}
 				if(end===null) end = perf.now();
-				duration = (end - begin) - perftime;
+				duration = Math.max(0,(end - begin) - (perftime + computetime));
 				begin = perf.now();
 				if(timeout===0 && test._timeout>0) {
 					this.timeout(test._timeout*(maxCycles+5))
@@ -171,8 +180,11 @@ SOFTWARE.
 				end = null;
 				computetime += (perf.now() - begin) + perftime;
 			}
-			duration = durations.filter(duration => duration<=0).length / durations.length >= 0.8 ? 0 : (perf.now() - start - computetime - perftime) / cycles;
-			test.performance = {cycles,duration,min,max};
+			duration = durations.filter(duration => duration<=0).length / durations.length >= 0.8 ? 0 : (perf.now() - (start + computetime + perftime)) / cycles;
+			//duration = (perf.now() - start - computetime - perftime) / cycles;
+			const revised = durations.filter(duration => duration!==min && duration!==max);
+			const avg = revised.reduce((accum,duration) => accum += duration,0)/revised.length;
+			test.performance = {cycles,duration,min,max,sensitivity};
 		}
 	}
 	benchtest.testable = function(test) {

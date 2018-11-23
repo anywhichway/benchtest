@@ -1,4 +1,4 @@
-# benchtest v2.0.1
+# benchtest v2.0.2
 
 Integrated performance testing for Mocha based unit testing.
 
@@ -16,17 +16,17 @@ after(() => benchtest.run({log:"md"}));
 Afterwards a Markdown compatible table containing performance results for all successful tests similar to the one below will be printed to the console:
 
 
-| Test                  |  Ops/Sec | +/- | Sample |
-| --------------------- | --------:| ---:| ------:|
-| no-op #               | Infinity |   0 |     33 |
-| sleep 100ms #         |       10 |   0 |     20 |
-| sleep 100ms Promise # |       10 |   0 |     10 |
-| sleep random ms #     |       21 |   0 |    100 |
-| loop 100 #            |   132980 |   0 |     10 |
-| use heap #            |    36161 |   0 |    100 |
+| Test Suite 1          |  Ops/Sec |      +/- |   Min |      Max | Sample |
+| --------------------- | --------:| --------:| -----:| --------:| ------:|
+| no-op #               | Infinity | Infinity |   909 | Infinity |    100 |
+| sleep 100ms #         |       10 |        1 |    10 |       10 |     12 |
+| sleep 100ms Promise # |       10 |        1 |    10 |       10 |     10 |
+| sleep random ms #     |       19 |        2 |    10 | Infinity |    100 |
+| loop 100 #            | Infinity | Infinity | 10000 | Infinity |    100 |
+| use heap #            | Infinity | Infinity | 10000 | Infinity |    100 |
 
 
-Note, the `Ops/Sec` will be `Infinity` for functions where the time to execute `maxCycles` (a start-up option defaulting to 100) takes less time than can me measured by `window.perf()` or `performance-now` for Node.js.
+Note, the `Ops/Sec` will be `Infinity` for functions where the time to execute `maxCycles` (a start-up option defaulting to 100) on average takes less time than can me measured by `window.perf()` or `performance-now` for Node.js.
 
 In the browser `benchtest` requires just one line of code after loading the library! This `onload` call adds performance testing to all Mocha unit tests.
 
@@ -36,17 +36,19 @@ In the browser `benchtest` requires just one line of code after loading the libr
 
 The browser results will be augmented like below:
 
-&check; no-op # Infinity sec +/- 0 100 samples
+&check; no-op # Infinity sec +/- Infinity min: 909 max: Infinity 100 samples
 
-&check; sleep 100ms # 10 sec +/- 2 11 samples 108ms
+&check; sleep 100ms # 10 sec +/- 1 min: 10 max: 10 12 samples100ms
 
-&check; sleep 100ms Promise # 10 sec +/- 2 11 samples 101ms
+&check; sleep 100ms Promise # 10 sec +/- 1 min: 10 max: 10 10 samples100ms
 
-&check; sleep random ms # 21 sec +/- 99 100 samples 45ms
+&check; sleep random ms # 19 sec +/- 2 min: 10 max: Infinity 100 samples81ms
 
-&check; loop 10000 # Infinity sec +/- 0 95 samples
+&check; loop 100 # Infinity sec +/- Infinity min: 10000 max: Infinity 100 samples
 
-&check; use heap # Infinity sec +/- 0 95 samples
+&check; use heap # Infinity sec +/- Infinity min: 10000 max: Infinity 100 samples
+
+&check; no-benchtest
 
 
 # Installation
@@ -144,6 +146,8 @@ If `global.gc` is defined as a result of starting Chrome or Node.js with `--expo
 Unit tests that result in rejected Promises abort the `benchtest` processing. Use `done(Error)` for all your test failures.
 
 # Release History (reverse chronological order)
+
+2018-11-23 v2.0.2 Added min and max to reporting.
 
 2018-11-22 v2.0.1 Fixed edge case reporting error where bechtest is used but no tests are benchmarked.
 
