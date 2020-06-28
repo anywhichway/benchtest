@@ -1,6 +1,6 @@
 {
   "name": "benchtest",
-  "version": "v2.0.3",
+  "version": "v2.0.4",
   "description": "Integrated performance testing for Mocha based unit testing",
   "engines": {},
   "license": "MIT",
@@ -13,7 +13,9 @@
   },
   "keywords": [
     "mocha",
-    "benchmark"
+    "benchmark",
+	"performance",
+	"jsperf"
   ],
   "author": "Simon Y. Blackwell <syblackwell@anywhichway.com> (http://www.github.com/anywhichway)",
   "bugs": {

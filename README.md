@@ -1,8 +1,8 @@
 # benchtest v2.0.2
 
-Integrated performance testing for Mocha based unit testing.
+Integrated performance testing for Mocha based unit testing. No special tests are needed. Reuses existing [Mocha](https://mochajs.org/) unit tests.
 
-Benchtest provides performance testing wrapper around the [Mocha](https://mochajs.org/) unit test runner. It can be used as a light weight, but not as quite as powerful, alternative to the stellar [benchmark.js](https://github.com/bestiejs/benchmark.js) library.
+It can be used as a light weight, but not as quite as powerful, alternative to the stellar [benchmark.js](https://github.com/bestiejs/benchmark.js) library.
 
 Benchtest set-up can be done in as little as three lines of code for [Node](https://nodejs.org/en/) projects.
 
@@ -50,6 +50,8 @@ The browser results will be augmented like below:
 
 &check; no-benchtest
 
+Note, Benchtest should only be one part of your performance testing, you should also use simulators that emulate real world conditions and test your code at the application level to assess
+network impacts, module interactions, etc. 
 
 # Installation
 
@@ -57,7 +59,11 @@ npm install benchtest --save-dev
 
 # Usage
 
-Whenever you do performance tests, if the code will ever be used in a browser, we recommend you test across ALL browsers and not use Node.js results as a proxy. Node.js performance results are rarely the same as browsers results. For brwoesers, we generally find Chrome fastest, Firefox next and Edge a distant third despite Microsoft's claims that Edge is the fastest. Node.js frequently lags behind the browsers and can vary dramatically from version to version.
+Whenever you do performance tests, if the code will ever be used in a browser, we recommend you test across ALL browsers and not use Node.js results as a proxy for the browser. 
+Node.js performance results are rarely the same as browsers results. For browsers, we generally find Chrome fastest and Firefox next and older versions of Edge a distant third
+despite Microsoft's claims that Edge is the fastest. Newer versions of Edge use the v8 engine and are likely to be close to Chrome for non-DOM operations. Node.js frequently 
+lags behind the browsers in the V8 engine it uses and can vary dramatically from version to version. This being said, browser vendors also reduce the precision of 
+the timers used to help reduce their cyber attack surface, so you should also not use browsers as a proxy for you server environment.
 
 See the test in the `test` directory for an example of how to use.
 
@@ -148,6 +154,8 @@ If `global.gc` is defined as a result of starting Chrome or Node.js with `--expo
 Unit tests that result in rejected Promises abort the `benchtest` processing. Use `done(Error)` for all your test failures.
 
 # Release History (reverse chronological order)
+
+2020-06-28 v2.0.4 Enhanced documentation.
 
 2020-06-27 v2.0.3 Added cycle reporting while benchtests are running.
 
