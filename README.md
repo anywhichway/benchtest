@@ -78,7 +78,7 @@ Add a `#` to the end of each unit test name you wish to benchmark. See the API s
 Load the benchtest code, `benchtest.js` located in the module `browser` subdirectory using a `script` tag. Assuming your testing is occuring from subdirectory of your project root it should look something like this:
 
 ```html
-<script src="../node_modules/browser/benchtest.js" type="text/javascript"></script>
+<script src="../node_modules/benchtest/browser/benchtest.js" type="text/javascript"></script>
 ```
 
 Add this to your `onload` function or where you normally start Mocha.
@@ -88,6 +88,8 @@ benchtest(mocha.run());
 ```
 
 Add a `#` to the end of each unit test name you wish to benchmark. See the API section for details on cofiguration options for `benchtest`.
+
+If there is a div  in the HTML with the id "messages", benchtest wil report the test it is running so that it does not appear things are "dead".
 
 ## Unit Testing Performance Expectations
 
@@ -146,6 +148,8 @@ If `global.gc` is defined as a result of starting Chrome or Node.js with `--expo
 Unit tests that result in rejected Promises abort the `benchtest` processing. Use `done(Error)` for all your test failures.
 
 # Release History (reverse chronological order)
+
+2020-06-27 v2.0.3 Added cycle reporting while benchtests are running.
 
 2018-11-23 v2.0.2 Added min and max to reporting.
 

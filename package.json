@@ -1,6 +1,6 @@
 {
   "name": "benchtest",
-  "version": "v2.0.2",
+  "version": "v2.0.3",
   "description": "Integrated performance testing for Mocha based unit testing",
   "engines": {},
   "license": "MIT",
@@ -21,6 +21,7 @@
   },
   "homepage": "https://github.com/anywhichway/benchtest#readme",
   "devDependencies": {
+    "browserify": "^16.5.1",
     "chai": "^3.4.1",
     "codacy-coverage": "^2.0.0",
     "codeclimate-test-reporter": "^0.2.0",

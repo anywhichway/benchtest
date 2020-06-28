@@ -42,7 +42,13 @@ SOFTWARE.
 		if(runner) {
 			runner.on("suite", suite => {
 				beforeEach.call(suite,benchtest.test);
-				after.call(suite,benchtest.report);
+				after.call(suite,() => {
+					benchtest.report(suite);
+					const messages = document.getElementById("messages");
+					if(messages) {
+						messages.innerHTML = ``
+					}
+				});
 			});
 			if(typeof(window!=="undefined")) {
 				runner.on("pass",function(test) {
@@ -119,6 +125,7 @@ SOFTWARE.
 	benchtest.test = async function() {
 		const test = arguments[0] || this.currentTest; // don't move arguments[0] to an arg, it breaks Mocha
 		if(benchtest.testable(test)) {
+			const messages = document.getElementById("messages");
 			// declare all variables outside test loop to reduce garbage collection impact
 			if(test.parent!==SUITE) {
 				SUITE = test.parent;
@@ -147,6 +154,9 @@ SOFTWARE.
 			// use a special proxy so that performance checks are essentailly disabled during test loop
 			test.performance = PERFORMANCE_PROXY;
 			while(++cycles<maxCycles) {
+				if(messages) {
+					messages.innerHTML = `Benchtesting ${test.title} cylce ${cycles} ...`
+				}
 				begin = perf.now();
 				try {
 					result = await test.fn.call(this,done);

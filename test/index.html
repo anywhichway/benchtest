@@ -8,6 +8,9 @@
 </head>
 <body onload="benchtest(mocha.run(),{log:'md',only:true})">
 <div id="mocha"></div>
+<div id="messages"></div>
+<div id="fixtures"></div>
+<div id="app"></div>
 <script>
 mocha.setup('bdd');
 var expect = chai.expect;
