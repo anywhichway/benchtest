@@ -1,6 +1,6 @@
 # benchtest v2.0.2
 
-Integrated performance testing for Mocha based unit testing. No special tests are needed. Reuses existing [Mocha](https://mochajs.org/) unit tests.
+Integrated performance testing for Mocha based unit testing. No special tests are needed. Re-uses existing [Mocha](https://mochajs.org/) unit tests.
 
 It can be used as a light weight, but not as quite as powerful, alternative to the stellar [benchmark.js](https://github.com/bestiejs/benchmark.js) library.
 
