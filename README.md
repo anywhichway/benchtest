@@ -28,7 +28,7 @@ Afterwards a Markdown compatible table containing performance results for all su
 
 Note, the `Ops/Sec` will be `Infinity` for functions where the time to execute `maxCycles` (a start-up option defaulting to 100) on average takes less time than can me measured by `window.perf()` or `performance-now` for Node.js.
 
-In the browser `benchtest` requires just one line of code after loading the library! This `onload` call adds performance testing to all Mocha unit tests.
+In the browser `benchtest` requires just one line of code after loading the library! This `onload` call adds performance testing to all Mocha unit tests in a browser. See  `Usage` below for how to use wuth Node.js.
 
 ```
 <body onload="benchtest(mocha.run(),{all:true})">
@@ -71,7 +71,7 @@ beforeEach(benchtest.test);
 after(benchtest.report);
 ```
 
-Add a `#` to the end of each unit test name you wish to benchmark. See the API section for details on cofiguration options for `benchtest`.
+Add a `#` to the end of each unit test name you wish to benchmark or use the opiton `all:true`. See the API section for details on cofiguration options for `benchtest`.
 
 ## Browser
 
@@ -87,9 +87,9 @@ Add this to your `onload` function or where you normally start Mocha.
 benchtest(mocha.run());
 ```
 
-Add a `#` to the end of each unit test name you wish to benchmark. See the API section for details on cofiguration options for `benchtest`.
+Add a `#` to the end of each unit test name you wish to benchmark or use the opiton `all:true`. See the API section for details on cofiguration options for `benchtest`.
 
-If there is a div  in the HTML with the id "messages", benchtest wil report the test it is running so that it does not appear things are "dead".
+If there is a div in the HTML with the id "messages", benchtest will report the test it is running so that it does not appear things are "dead".
 
 ## Unit Testing Performance Expectations
 
