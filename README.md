@@ -16,14 +16,15 @@ after(() => benchtest.run({log:"md"}));
 Afterwards a Markdown compatible table containing performance results for all successful tests similar to the one below will be printed to the console:
 
 
-| Test Suite 1          |  Ops/Sec |      +/- |   Min |      Max | Sample |
-| --------------------- | --------:| --------:| -----:| --------:| ------:|
-| no-op #               | Infinity | Infinity |   909 | Infinity |    100 |
-| sleep 100ms #         |       10 |        1 |    10 |       10 |     12 |
-| sleep 100ms Promise # |       10 |        1 |    10 |       10 |     10 |
-| sleep random ms #     |       19 |        2 |    10 | Infinity |    100 |
-| loop 100 #            | Infinity | Infinity | 10000 | Infinity |    100 |
-| use heap #            | Infinity | Infinity | 10000 | Infinity |    100 |
+| Test Suite 1          |  Ops/Sec |      +/- |   Min |      Max | Sample | Errors |
+| --------------------- | --------:| --------:| -----:| --------:| ------:| ------ | 
+| no-op #               | Infinity | Infinity | 20000 | Infinity |    100 |      0 |
+| sleep 100ms #         |       10 |        1 |    10 |       12 |    100 |      0 |
+| sleep 100ms Promise # |       10 |        1 |     8 |       11 |    100 |      0 |
+| sleep random ms #     |       21 |        2 |    10 | Infinity |    100 |      0 |
+| loop 100 #            | Infinity | Infinity | 10526 | Infinity |    100 |      0 |
+| use heap #            | Infinity | Infinity | 10526 | Infinity |    100 |      0 |
+| throw error #         |    43290 |     4329 |     0 |        0 |    100 |     99 |
 
 
 Note, the `Ops/Sec` will be `Infinity` for functions where the time to execute `maxCycles` (a start-up option defaulting to 100) on average takes less time than can me measured by `window.perf()` or `performance-now` for Node.js.
@@ -154,6 +155,8 @@ If `global.gc` is defined as a result of starting Chrome or Node.js with `--expo
 Unit tests that result in rejected Promises abort the `benchtest` processing. Use `done(Error)` for all your test failures.
 
 # Release History (reverse chronological order)
+
+2020-07-17 v2.0.6 Added error counts.
 
 2020-07-16 v2.0.5 Test cycles not just aborat when a test throws an error rather than throw an error themselves and prevent further testing.
 

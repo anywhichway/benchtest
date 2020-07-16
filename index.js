@@ -96,22 +96,24 @@ SOFTWARE.
 				max = Math.round(1000/test.performance.min)+"",
 				min = Math.round(1000/test.performance.max)+"",
 				cycles = test.performance.cycles+"",
-				result = {title:test.title,ops,variability,cycles,min,max};
+				errors = test.performance.errors+"",
+				result = {title:test.title,ops,variability,cycles,min,max,errors};
 			widths.title = Math.max(result.title.length,widths.title);
 			widths.ops = Math.max(ops.length,widths.ops);
 			widths.variability = Math.max(variability.length,widths.variability);
 			widths.min = Math.max(min.length,widths.min);
 			widths.max = Math.max(max.length,widths.max);
 			widths.cycles = Math.max(cycles.length,widths.cycles);
+			widths.errors = Math.max(errors.length,widths.errors||"Errors ".length);
 			return result;
 		});
 		if(results.length>0) {
 			const {log,logStream} = benchtest.options;
 			if(log==="md") {
-				const	head = `| ${suite.title.padEnd(widths.title," ")} | ${"Ops/Sec".padStart(widths.ops," ")} | ${"+/-".padStart(widths.variability," ")} | ${"Min".padStart(widths.min," ")} | ${"Max".padStart(widths.max," ")} | ${"Sample".padStart(widths.cycles," ")} |\n`,
-					line = `| ${"-".padEnd(widths.title,"-")} | ${"-".padEnd(widths.ops,"-")}:| ${"-".padEnd(widths.variability,"-")}:| ${"-".padEnd(widths.min,"-")}:| ${"-".padEnd(widths.max,"-")}:| ${"-".padEnd(widths.cycles,"-")}:|\n`,
+				const	head = `| ${suite.title.padEnd(widths.title," ")} | ${"Ops/Sec".padStart(widths.ops," ")} | ${"+/-".padStart(widths.variability," ")} | ${"Min".padStart(widths.min," ")} | ${"Max".padStart(widths.max," ")} | ${"Sample".padStart(widths.cycles," ")} | ${"Errors".padStart(widths.errors," ")}|\n`,
+					line = `| ${"-".padEnd(widths.title,"-")} | ${"-".padEnd(widths.ops,"-")}:| ${"-".padEnd(widths.variability,"-")}:| ${"-".padEnd(widths.min,"-")}:| ${"-".padEnd(widths.max,"-")}:| ${"-".padEnd(widths.cycles,"-")}:| ${"-".padEnd(widths.errors,"-")} | \n`,
 					body = results.reduce((accum,result) => {
-						accum += `| ${result.title.padEnd(widths.title," ")} | ${result.ops.padStart(widths.ops," ")} | ${result.variability.padStart(widths.variability," ")} | ${result.min.padStart(widths.min," ")} | ${result.max.padStart(widths.max," ")} | ${result.cycles.padStart(widths.cycles," ")} |\n`;
+						accum += `| ${result.title.padEnd(widths.title," ")} | ${result.ops.padStart(widths.ops," ")} | ${result.variability.padStart(widths.variability," ")} | ${result.min.padStart(widths.min," ")} | ${result.max.padStart(widths.max," ")} | ${result.cycles.padStart(widths.cycles," ")} | ${result.errors.padStart(widths.errors," ")} |\n`;
 						return accum;
 					},"")
 					logStream.log(head+line+body);
@@ -153,6 +155,7 @@ SOFTWARE.
 			test.fn = fn.bind(test);
 			// use a special proxy so that performance checks are essentailly disabled during test loop
 			test.performance = PERFORMANCE_PROXY;
+			let errors = 0;
 			while(++cycles<maxCycles) {
 				if(messages) {
 					messages.innerHTML = `Benchtesting ${test.title} cycle ${cycles} ...`
@@ -162,7 +165,8 @@ SOFTWARE.
 					result = await test.fn.call(this,done);
 				} catch(e) {
 					if(e!==PERFORMANCE_ACCESS_ERROR) {
-						return;
+						errors++;
+						continue;
 					}
 				}
 				if(end===null) end = perf.now();
@@ -194,7 +198,7 @@ SOFTWARE.
 			//duration = (perf.now() - start - computetime - perftime) / cycles;
 			const revised = durations.filter(duration => duration!==min && duration!==max);
 			const avg = revised.reduce((accum,duration) => accum += duration,0)/revised.length;
-			test.performance = {cycles,duration,min,max,sensitivity};
+			test.performance = {cycles,duration,min,max,sensitivity,errors};
 		}
 	}
 	benchtest.testable = function(test) {

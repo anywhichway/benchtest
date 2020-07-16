@@ -1,6 +1,6 @@
 {
   "name": "benchtest",
-  "version": "v2.0.5",
+  "version": "v2.0.6",
   "description": "Integrated performance testing for Mocha based unit testing",
   "engines": {},
   "license": "MIT",

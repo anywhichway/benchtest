@@ -53,6 +53,7 @@ const ELEMENTS_SEEN = new Set();
 			heap.push(new Array(1000).fill("        "));
 			done();
 		});
+		it("throw error #", function() { throw(new Error("test error")); })
 		it("no-benchtest", function(done) { done(); });
 	});
 });
