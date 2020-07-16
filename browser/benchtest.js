@@ -156,14 +156,14 @@ SOFTWARE.
 			test.performance = PERFORMANCE_PROXY;
 			while(++cycles<maxCycles) {
 				if(messages) {
-					messages.innerHTML = `Benchtesting ${test.title} cylce ${cycles} ...`
+					messages.innerHTML = `Benchtesting ${test.title} cycle ${cycles} ...`
 				}
 				begin = perf.now();
 				try {
 					result = await test.fn.call(this,done);
 				} catch(e) {
 					if(e!==PERFORMANCE_ACCESS_ERROR) {
-						throw e;
+						return;
 					}
 				}
 				if(end===null) end = perf.now();

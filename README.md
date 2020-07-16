@@ -155,6 +155,8 @@ Unit tests that result in rejected Promises abort the `benchtest` processing. Us
 
 # Release History (reverse chronological order)
 
+2020-07-16 v2.0.5 Test cycles not just aborat when a test throws an error rather than throw an error themselves and prevent further testing.
+
 2020-06-28 v2.0.4 Enhanced documentation.
 
 2020-06-27 v2.0.3 Added cycle reporting while benchtests are running.
