@@ -34,13 +34,13 @@ SOFTWARE.
 		PERFORMANCE_ACCESS_ERROR = new Error("performance access"),
 		PERFORMANCE_PROXY = new Proxy({},{
 			get(target,property) {
-				throw PERFORMANCE_ACCESS_ERROR
+				throw PERFORMANCE_ACCESS_ERROR;
 			}
 		});
 	const benchtest = function(runner,{minCycles=10,maxCycles=100,sensitivity=.01,log="md",logStream=console,all,off,only}={}) {
 		benchtest.options = {minCycles:Math.min(minCycles,maxCycles),maxCycles,sensitivity,log,logStream,all,off,only};
 		if(runner) {
-			runner.on("suite", suite => {
+			runner.on("suite", (suite) => {
 				beforeEach.call(suite,benchtest.test);
 				after.call(suite,() => {
 					benchtest.report(suite);
@@ -115,7 +115,7 @@ SOFTWARE.
 					body = results.reduce((accum,result) => {
 						accum += `| ${result.title.padEnd(widths.title," ")} | ${result.ops.padStart(widths.ops," ")} | ${result.variability.padStart(widths.variability," ")} | ${result.min.padStart(widths.min," ")} | ${result.max.padStart(widths.max," ")} | ${result.cycles.padStart(widths.cycles," ")} | ${result.errors.padStart(widths.errors," ")} |\n`;
 						return accum;
-					},"")
+					},"");
 					logStream.log(head+line+body);
 			} else if(log==="json") {
 				logStream.log(results);
@@ -141,28 +141,37 @@ SOFTWARE.
 				resolved,
 				begin,
 				end = null,
-				done = value => { end = perf.now(); resolved = value; return value; },
+				done = (value) => { end = perf.now(); resolved = value; return value; },
 				duration,
 				previous = 0,
 				delta,
 				start = perf.now(),
 				cycles = 0,
 				timeout = 0,
-				perftime = Math.abs(perf.now()-perf.now());
+				perftime = Math.abs(perf.now()-perf.now()),
+				memory = 0,
+				maxmemory = 0,
+				minmemory = 0,
+				meanmemory = 0,
+				variancememory = 0,
+				memories = [],
 				computetime = 0,
 				durations = [];
 			// make test object accessable inside of test
 			test.fn = fn.bind(test);
 			// use a special proxy so that performance checks are essentailly disabled during test loop
 			test.performance = PERFORMANCE_PROXY;
+			console.log(test.title,performance.memory)
 			let errors = 0;
 			while(++cycles<maxCycles) {
 				if(messages) {
 					messages.innerHTML = `Benchtesting ${test.title} cycle ${cycles} ...`
 				}
+				const startmemory = perf.memory.usedJSHeapSize;
+				
 				begin = perf.now();
 				try {
-					result = await test.fn.call(this,done);
+					await test.fn.call(this,done); // result = 
 				} catch(e) {
 					if(e!==PERFORMANCE_ACCESS_ERROR) {
 						errors++;
@@ -170,6 +179,13 @@ SOFTWARE.
 					}
 				}
 				if(end===null) end = perf.now();
+				const endmemory = perf.memory.usedJSHeapSize;
+				memory = endmemory - startmemory;
+				memories.push(memory);
+				maxmemory = Math.max(memory,maxmemory);
+				minmemory = Math.max(memory,minmemory);
+				meanmemory = memories.reduce((accum,memory) => accum += memory,0) / memories.length;
+				variancememory = memories.map(memory => memory - meanmemory).reduce((accum,memory) => accum += memory * memory,0)/memories.length;
 				duration = Math.max(0,(end - begin) - (perftime + computetime));
 				begin = perf.now();
 				if(timeout===0 && test._timeout>0) {
@@ -180,7 +196,7 @@ SOFTWARE.
 				max = Math.max(duration,max);
 				min = Math.min(duration,min);
 				mean = durations.reduce((accum,duration) => accum += duration,0) / durations.length;
-				variance = durations.map(duration => duration - mean).reduce((accum,duration) => accum += duration * duration,0)/durations.length;
+				variance = durations.map((duration) => duration - mean).reduce((accum,duration) => accum += duration * duration,0)/durations.length;
 				// exit if sensitivity criteria met and minCycles have been run
 				if(variance / mean <= sensitivity && cycles >= minCycles) {
 					computetime += (perf.now() - begin) + perftime;
@@ -194,11 +210,13 @@ SOFTWARE.
 				end = null;
 				computetime += (perf.now() - begin) + perftime;
 			}
-			duration = durations.filter(duration => duration<=0).length / durations.length >= 0.8 ? 0 : (perf.now() - (start + computetime + perftime)) / cycles;
+			console.log(test.title,performance.memory)
+			duration = durations.filter((duration) => duration<=0).length / durations.length >= 0.8 ? 0 : (perf.now() - (start + computetime + perftime)) / cycles;
 			//duration = (perf.now() - start - computetime - perftime) / cycles;
-			const revised = durations.filter(duration => duration!==min && duration!==max);
+			const revised = durations.filter((duration) => duration!==min && duration!==max);
 			const avg = revised.reduce((accum,duration) => accum += duration,0)/revised.length;
-			test.performance = {cycles,duration,min,max,sensitivity,errors};
+			test.performance = {cycles,duration,min,mean,max,sensitivity,errors,minmemory,meanmemory,maxmemory,variancememory};
+			console.log(test.title,test.performance);
 		}
 	}
 	benchtest.testable = function(test) {

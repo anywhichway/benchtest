@@ -28,7 +28,7 @@ const ELEMENTS_SEEN = new Set();
 			this.timeout(101);
 			const startTime = Date.now();
 			while (Date.now() < startTime + 100) { ; };
-			expect(this.performance.duration).to.be.above(99);
+			expect(this.performance.duration).to.be.above(98);
 			expect(this.performance.duration).to.be.below(101);
 			done();
 		});
@@ -37,7 +37,7 @@ const ELEMENTS_SEEN = new Set();
 			return new Promise(resolve => {
 				const startTime = Date.now();
 				while (Date.now() < startTime + 100) { ; };
-				expect(this.performance.duration).to.be.above(99);
+				expect(this.performance.duration).to.be.above(98);
 				expect(this.performance.duration).to.be.below(101);
 				resolve();
 			});
@@ -50,7 +50,7 @@ const ELEMENTS_SEEN = new Set();
 		});
 		it("loop 100 #", function loop100(done) { let i=0; while(i++<100) i++; done(); });
 		it("use heap #",function(done) {
-			heap.push(new Array(1000).fill("        "));
+			heap.push(new Array(10000).fill(new String("        ")));
 			done();
 		});
 		it("throw error #", function() { throw(new Error("test error")); })

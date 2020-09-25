@@ -54,11 +54,11 @@ The browser results will be augmented like below:
 Note, Benchtest should only be one part of your performance testing, you should also use simulators that emulate real world conditions and test your code at the application level to assess
 network impacts, module interactions, etc. 
 
-# Installation
+## Installation
 
 npm install benchtest --save-dev
 
-# Usage
+## Usage
 
 Whenever you do performance tests, if the code will ever be used in a browser, we recommend you test across ALL browsers and not use Node.js results as a proxy for the browser. 
 Node.js performance results are rarely the same as browsers results. For browsers, we generally find Chrome fastest and Firefox next and older versions of Edge a distant third
@@ -68,7 +68,7 @@ the timers used to help reduce their cyber attack surface, so you should also no
 
 See the test in the `test` directory for an example of how to use.
 
-## Node
+### Node
 
 Just add two global Mocha event hooks. Benchtest will automatically exclude tests that fail.
 
@@ -98,7 +98,7 @@ Add a `#` to the end of each unit test name you wish to benchmark or use the opi
 
 If there is a div in the HTML with the id "messages", benchtest will report the test it is running so that it does not appear things are "dead".
 
-## Unit Testing Performance Expectations
+### Unit Testing Performance Expectations
 
 With v2.0.0 of `benchtest` it is now possible to set expectations about performance in your unit tests. The `this` context of each unit test will be the test itself. On each test is a `performance` property having the surface `{duration:number,min:number,max:number,cycles:number}`. You can test these values like any other value inside of a test, e.g. the test below ensurses the average duration is between 99 and 101 milliseconds.
 
@@ -107,7 +107,7 @@ With v2.0.0 of `benchtest` it is now possible to set expectations about performa
 	expect(this.performance.duration).to.be.below(101);
 ```
 
-# API
+## API
 
 `Runner benchtest(mochaRunner,options={})` - Used for browser initialization of `benchtest`. The value of `mochaRunner` is the return value of `mocha.run()`. Returns `mochaRunner`.
 
@@ -143,18 +143,20 @@ The `options` has this shape with the provided defaults:
 
 `boolean benchtest.testable(unitTest)` - Checks for `#` as last character in test name.
 
-# Internals
+## Internals
 
 Before running each test with regular expectations, `benchtest` runs each test `minCycles` to `maxCycles` and exits its test loop when the variance percentage is than or equal `sensitivity`. The average execution time is then computed from the time at the very start of a test loop up to the point it exits divided by the number of cycles actually run. This avoids situations where a single function call may always or almost always take less than a millisecond. It also addresses the fact that garbage collection in JavaScript is unmanaged and your functions may be subject to it at some point. If more than 80% of test calls in a benchtest cycle take less that 1ms, then the speed will be reported as `Infinity` because garbage collection
 will most likely overshadow any micro-optimizations.
 
 If `global.gc` is defined as a result of starting Chrome or Node.js with `--expose-gc` flag, it will be called betwen each test-lopp to minimize garbage collection impact on actual tests.
 
-# Known Issues
+## Known Issues
 
 Unit tests that result in rejected Promises abort the `benchtest` processing. Use `done(Error)` for all your test failures.
 
-# Release History (reverse chronological order)
+## Release History (reverse chronological order)
+
+2020-09-23 v2.0.7 Codacy driven quality improvements.
 
 2020-07-17 v2.0.6 Added error counts.
 
