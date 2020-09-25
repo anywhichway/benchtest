@@ -1,4 +1,6 @@
-# benchtest v2.0.2
+# benchtest v2.0.7
+
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/09d42f5b2bc7485fab8dbf583b776c0e)](https://www.codacy.com/manual/syblackwell/benchtest/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=anywhichway/benchtest&amp;utm_campaign=Badge_Grade)
 
 Integrated performance testing for Mocha based unit testing. No special tests are needed. Re-uses existing [Mocha](https://mochajs.org/) unit tests.
 
