@@ -57,9 +57,9 @@ Note, Benchtest should only be one part of your performance testing, you should 
 network impacts, module interactions, etc. 
 
 ## Installation
-
+```
 npm install benchtest --save-dev
-
+```
 ## Usage
 
 Whenever you do performance tests, if the code will ever be used in a browser, we recommend you test across ALL browsers and not use Node.js results as a proxy for the browser. 
