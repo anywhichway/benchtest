@@ -1,162 +1,132 @@
-# benchtest v2.0.7
+# benchtest v3.0.0a
 
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/09d42f5b2bc7485fab8dbf583b776c0e)](https://www.codacy.com/manual/syblackwell/benchtest/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=anywhichway/benchtest&amp;utm_campaign=Badge_Grade)
-
-Integrated performance testing for Mocha based unit testing. No special tests are needed. Re-uses existing [Mocha](https://mochajs.org/) unit tests.
-
-It can be used as a light weight, but not as quite as powerful, alternative to the stellar [benchmark.js](https://github.com/bestiejs/benchmark.js) library.
-
-Benchtest set-up can be done in as little as three lines of code for [Node](https://nodejs.org/en/) projects.
-
-```javascript
-const benchtest = require("benchtest");
-afterEach(function () { benchtest.test(this.currentTest); });
-after(() => benchtest.run({log:"md"}));
-
-```
-
-Afterwards a Markdown compatible table containing performance results for all successful tests similar to the one below will be printed to the console:
-
-
-| Test Suite 1          |  Ops/Sec |      +/- |   Min |      Max | Sample | Errors |
-| --------------------- | --------:| --------:| -----:| --------:| ------:| ------ | 
-| no-op #               | Infinity | Infinity | 20000 | Infinity |    100 |      0 |
-| sleep 100ms #         |       10 |        1 |    10 |       12 |    100 |      0 |
-| sleep 100ms Promise # |       10 |        1 |     8 |       11 |    100 |      0 |
-| sleep random ms #     |       21 |        2 |    10 | Infinity |    100 |      0 |
-| loop 100 #            | Infinity | Infinity | 10526 | Infinity |    100 |      0 |
-| use heap #            | Infinity | Infinity | 10526 | Infinity |    100 |      0 |
-| throw error #         |    43290 |     4329 |     0 |        0 |    100 |     99 |
-
-
-Note, the `Ops/Sec` will be `Infinity` for functions where the time to execute `maxCycles` (a start-up option defaulting to 100) on average takes less time than can me measured by `window.perf()` or `performance-now` for Node.js.
-
-In the browser `benchtest` requires just one line of code after loading the library! This `onload` call adds performance testing to all Mocha unit tests in a browser. See  `Usage` below for how to use wuth Node.js.
-
-```
-<body onload="benchtest(mocha.run(),{all:true})">
-```
-
-The browser results will be augmented like below:
-
-&check; no-op # Infinity sec +/- Infinity min: 909 max: Infinity 100 samples
-
-&check; sleep 100ms # 10 sec +/- 1 min: 10 max: 10 12 samples100ms
-
-&check; sleep 100ms Promise # 10 sec +/- 1 min: 10 max: 10 10 samples100ms
-
-&check; sleep random ms # 19 sec +/- 2 min: 10 max: Infinity 100 samples81ms
-
-&check; loop 100 # Infinity sec +/- Infinity min: 10000 max: Infinity 100 samples
-
-&check; use heap # Infinity sec +/- Infinity min: 10000 max: Infinity 100 samples
-
-&check; no-benchtest
-
-Note, Benchtest should only be one part of your performance testing, you should also use simulators that emulate real world conditions and test your code at the application level to assess
-network impacts, module interactions, etc. 
+Integrated performance testing and resource tracking (memory, cpu, Promise, socket, etc) for unit testing. No special tests are needed. Re-uses existing unit tests.
 
 ## Installation
+
 ```
 npm install benchtest --save-dev
 ```
-## Usage
 
-Whenever you do performance tests, if the code will ever be used in a browser, we recommend you test across ALL browsers and not use Node.js results as a proxy for the browser. 
-Node.js performance results are rarely the same as browsers results. For browsers, we generally find Chrome fastest and Firefox next and older versions of Edge a distant third
-despite Microsoft's claims that Edge is the fastest. Newer versions of Edge use the v8 engine and are likely to be close to Chrome for non-DOM operations. Node.js frequently 
-lags behind the browsers in the V8 engine it uses and can vary dramatically from version to version. This being said, browser vendors also reduce the precision of 
-the timers used to help reduce their cyber attack surface, so you should also not use browsers as a proxy for you server environment.
+Note: This is an ALPHA release. For a stable release install 2.0.7 and use the documentation from the install.
 
-See the test in the `test` directory for an example of how to use.
-
-### Node
-
-Just add two global Mocha event hooks. Benchtest will automatically exclude tests that fail.
-
-```javascript
-const benchtest = require("benchtest");
-beforeEach(benchtest.test);
-after(benchtest.report);
+```
+npm install benchtest@2.0.7 --save-dev
 ```
 
-Add a `#` to the end of each unit test name you wish to benchmark or use the opiton `all:true`. See the API section for details on cofiguration options for `benchtest`.
+# Usage
+
+*Note*: During ALPHA, the instructions apply to Jasmine. It is assumed you have installed and have working (https://jasmine.github.io/)[Jasmine] and Jasmine test specs. Support for other test harness will be added in BETA.
+
+*Note*: Benchtest should only be one part of your performance testing, you should also use simulators that emulate real world conditions and test your code at the application level to assess network impacts, module interactions, etc.
+
+## Node
+
+Benchtest set-up can be done in as little two lines of code for [Node](https://nodejs.org/en/) projects at the head of your test spec file.
+
+```javascript
+import {benchtest} from "../index.js";
+it = benchtest(it);
+```
+
+### Default Behavior
+
+By default all unit tests will now run and collect data regarding performance and Promise, async, memory, and cpu usage by running each test for 100 cycles.
+
+You can add an `afterAll` function to display the results:
+
+```javascript
+const metrics = benchtest.metrics(),
+    summary = benchtest.summarize(metrics),
+    issues = benchtest.issues(summary);
+//console.log("Metrics:",JSON.stringify(metrics,null,2));
+//console.log("Summary:",JSON.stringify(summary,null,2));
+console.log("Issues:",JSON.stringify(issues,null,2));
+```
+
+### Configuring Tests
+
+In place of the `timeout` value normally passed as the optional third argument to a test specification, you can pass a configuration object. All properties are optional.
+
+Providing `true` as a value simply turns on tracking. Providing a number ensures the runtime value is either `<=`, `=` depending on item tracked. The `memory`, `performance` and `cpu` metrics require sampling after the initial test is run and if a sample `size` is not provided, it defaults to 1. The other metrics are currently collected before sampling during normal test execution. Memory is sampled before the first and after the last sample cycle. If sampling is not requested for `performance` or `cpu`, a single cycle will be run to collect `memory` metrics.
+
+```javascript
+{
+  metrics: {
+      unresolvedPromises: boolean | number, // ===
+      unresolvedAsyncs: boolean | number, // ===
+      activeResources: boolean | {
+          CloseReq: boolean | number, // ===
+          ConnectWrap: boolean | number, // ===
+          Timeout: boolean | number, // ===
+          TCPSocketWrap: boolean | number, // ===
+          TTYWrap: boolean | number // ===
+      },
+      sample: {
+          size: number,
+          memory: boolean | {
+              rss: boolean | number, // <=  bytes
+              heapTotal: boolean | number, // <=  bytes
+              heapUsed: boolean | number, // <=  bytes
+              external: boolean | number, // <=  bytes
+              arrayBuffers: boolean | number// <=  bytes
+          },
+          performance: boolean | number, // <= float milliseconds to execute
+          cpu: boolean | {
+              user: boolean | number, // <= microseconds cpu time
+              system: boolean | number, // <= microseconds cpu time
+              }   
+      }
+  },
+  timeout: number | undefined // milliseconds to wait for test completion
+}
+```
+
+`unresolvePromises` is the number of Promises that have been created but not resolved. The `unresolvedAsyncs` is the number of async function calls that have not resolved. The `unresolvedPromises` value may be larger than `unresolvedAsyncs`. These are tracked separately because async function calls can't be monkey patched like Promise. Although they return Promises, depending on the underlying engine, they may not use the global Promise class to create their Promises.
+
+If your code uses third party libraries, you may find Promises, asyncs, and other resources being utilized that you did not expect. You can evaluate this by building unit test that only leverage the third party library and not any code that you have written to wrap the library.
+
+*Note*: If you run your test suite from anything but the command line, the tool you use, e.g. WebStorm, VisualStudio, may allocate external memory and you will get false errors when testing with a `memory.external` configuration.
+
+Here are a few examples. See `./sepc/inex.spec.js` for
+
+```javascript
+    const garbage = [];
+    it("Promise test 1",() => {
+        const promise = new Promise(() => {});
+        expect(promise).toBeInstanceOf(Promise)
+    },{metrics:{unresolvedPromises: 1,unresolvedAsyncs:1}})
+    
+    it("Promise test 1 - fail",() => {
+        const promise = new Promise(() => {});
+        expect(promise).toBeInstanceOf(Promise)
+    },{metrics:{unresolvedPromises: 0,unresolvedAsyncs:0}})
+    
+    it("memtest1",() => {
+        const text = "".padStart(1024,"a");
+    }, {metrics:{memory: {heapUsed:0}}, sample:{performance:true,cpu:true}})
+    
+    it("memtest2",() => {
+        garbage.push("".padStart(1024,"a"));
+    },{metrics:{memory: {heapUsed:0}}, sample:{performance:true,cpu:true}})
+```
 
 ## Browser
 
-Load the benchtest code, `benchtest.js` located in the module `browser` subdirectory using a `script` tag. Assuming your testing is occuring from subdirectory of your project root it should look something like this:
-
-```html
-<script src="../node_modules/benchtest/browser/benchtest.js" type="text/javascript"></script>
-```
-
-Add this to your `onload` function or where you normally start Mocha.
-
-```javascript
-benchtest(mocha.run());
-```
-
-Add a `#` to the end of each unit test name you wish to benchmark or use the opiton `all:true`. See the API section for details on cofiguration options for `benchtest`.
-
-If there is a div in the HTML with the id "messages", benchtest will report the test it is running so that it does not appear things are "dead".
-
-### Unit Testing Performance Expectations
-
-With v2.0.0 of `benchtest` it is now possible to set expectations about performance in your unit tests. The `this` context of each unit test will be the test itself. On each test is a `performance` property having the surface `{duration:number,min:number,max:number,cycles:number}`. You can test these values like any other value inside of a test, e.g. the test below ensurses the average duration is between 99 and 101 milliseconds.
-
-```javascript
-	expect(this.performance.duration).to.be.above(99);
-	expect(this.performance.duration).to.be.below(101);
-```
+Not supported in ALPHA release
 
 ## API
 
-`Runner benchtest(mochaRunner,options={})` - Used for browser initialization of `benchtest`. The value of `mochaRunner` is the return value of `mocha.run()`. Returns `mochaRunner`.
 
-For the default Mocha command line test runner, the first argument will be `null`. If you build a custom runner, pass in your runner instance after call `runner.run()`:
+## How Benchtest Works
 
-```
-const benchtest = require("benchtest");
-benchtest(null,{log:"json"}); // with the default Node.js Mocha tools, the first arg will always be null
-beforeEach(benchtest.test);
-after(benchtest.report);
-```
+Benchtest redefines the test specification function, monkey patches `Promise`, and uses `async_hooks`, performance.now()`, `process.getActiveResourcesInfo()`, `process.cpuUsage()`, and `process.memoryUsage()` to track absolute and delta values for resources. It also manually manages the garbage collection process. Careful attention has been paid to reporting performance in a manner that is not impacted by the `gc()` calls, although the actual runtime of tests will obviously be impacted by garbage collection.
 
-The `options` has this shape with the provided defaults:
-
-```javascript
-{minCycles=10,maxCycles=100,sensitivity=.01,log="md",logStream=console,all=false,off=false,only=false}`
-```
-
-<ul>
-	<li>`minCycles` - The minimum number of times to run a test to assess its performance.</li>
-	<li>`maxCycles` - The maximum number of times to run a test to assess its performance.</li>
-	<li>`sensisitivity` - The value of the percentage difference (expressed as a float, i.e. .01 = 1%) between individual cycle tests at which point the test loop should exit.</li>
-	<li>`log` - The format in which to output results to the `logStream`. Valid values are `md` for Markdown and `json`.</li>
-	<li>`logStream` - The stream to which results should be sent. The stream must support the method `log`, e.g. `console.log(...)`, `logstream.log(...)`.</li>
-	<li>`all` - Whether or not to benchtest all unit tests. When `all` is false, only tests with names ending in `#` will be performance tested.</li>
-	<li>`only` - Tells Mocha to skip all tests except those marked for benchmarking. Supercedes `all`. </li>
-	<li>`off` - Setting to `true` will turn off benchtesting.
-</ul>
-
-`Suite benchtest.report(suite)` - Writes the performance report for the `suite` to the log specified in the `benchtest` options using the format also specified in the options. If `suite` is not a `Suite`, uses its own tracking mechanism to get it (Mocha has no API to provide it).
-
-`Test async benchtest.test(unitTest)` - Runs performance assessment on `unitTest`, automatically excludes failed tests. If `unitTest` is not a `Test`, gets the `cuurentTest` from Mocha, if any. Returns the test.
-
-`boolean benchtest.testable(unitTest)` - Checks for `#` as last character in test name.
-
-## Internals
-
-Before running each test with regular expectations, `benchtest` runs each test `minCycles` to `maxCycles` and exits its test loop when the variance percentage is than or equal `sensitivity`. The average execution time is then computed from the time at the very start of a test loop up to the point it exits divided by the number of cycles actually run. This avoids situations where a single function call may always or almost always take less than a millisecond. It also addresses the fact that garbage collection in JavaScript is unmanaged and your functions may be subject to it at some point. If more than 80% of test calls in a benchtest cycle take less that 1ms, then the speed will be reported as `Infinity` because garbage collection
-will most likely overshadow any micro-optimizations.
-
-If `global.gc` is defined as a result of starting Chrome or Node.js with `--expose-gc` flag, it will be called betwen each test-lopp to minimize garbage collection impact on actual tests.
-
-## Known Issues
-
-Unit tests that result in rejected Promises abort the `benchtest` processing. Use `done(Error)` for all your test failures.
+The redefined test specification runs the original test once to track use of Promises, asyncs, and system resources other than memory. Then a sampling cycle is used for `memory`, `performance` and `cpu` utilization.
 
 ## Release History (reverse chronological order)
+
+2023-01-17 v3.0.0a Alpha of complete re-write that supports memory, Promise, timeout, socket and other resource traceability as well as performance testing. Use v2.0.7 for a stable release that only supports performance testing.
 
 2020-09-23 v2.0.7 Codacy driven quality improvements.
 

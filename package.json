@@ -1,11 +1,13 @@
 {
   "name": "benchtest",
-  "version": "v2.0.7",
-  "description": "Integrated performance testing for Mocha based unit testing",
+  "version": "v3.0.0a",
+  "description": "Integrated performance testing and resource tracking (memory, cpu, Promise, socket, etc) for unit testing",
   "engines": {},
   "license": "MIT",
+  "type": "module",
+  "main": "index.js",
   "scripts": {
-    "prepare": "browserify ./index.js -o browser/benchtest.js && uglifyjs browser/benchtest.js -o browser/benchtest.min.js"
+    "test-jasmine": "jasmine"
   },
   "repository": {
     "type": "git",
@@ -13,9 +15,11 @@
   },
   "keywords": [
     "mocha",
+    "jasmine",
     "benchmark",
-	"performance",
-	"jsperf"
+    "memory",
+    "performance",
+    "jsperf"
   ],
   "author": "Simon Y. Blackwell <syblackwell@anywhichway.com> (http://www.github.com/anywhichway)",
   "bugs": {
@@ -23,15 +27,10 @@
   },
   "homepage": "https://github.com/anywhichway/benchtest#readme",
   "devDependencies": {
-    "browserify": "^16.5.1",
-    "chai": "^3.4.1",
-    "codacy-coverage": "^2.0.0",
-    "codeclimate-test-reporter": "^0.2.0",
-    "istanbul": "^0.4.2",
-    "mocha": "^2.3.4",
-    "uglify-es": "^3.1.6"
+
   },
   "dependencies": {
-    "performance-now": "^2.1.0"
+    "jasmine": "^4.5.0",
+    "mathjs": "^11.5.0"
   }
 }

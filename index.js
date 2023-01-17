@@ -1,7 +1,7 @@
 /*
 MIT License
 
-Copyright (c) 2018 Simon Y. Blackwell, AnyWhichWay, LLC
+Copyright (c) 2023 Simon Y. Blackwell, AnyWhichWay, LLC
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,208 +21,536 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-(function() {
-	let perf = typeof(performance)!=="undefined" ? performance : null;
-	if(typeof(module)!=="undefined" && typeof(window)==="undefined") {
-		perf = {
-				now: require("performance-now"),
-				memory: {}
-		}
-		Object.defineProperty(perf.memory,"usedJSHeapSize",{enumerable:true,configurable:true,writable:true,value:0});
-	}
-	const ELEMENTS_SEEN = new Set(),
-		PERFORMANCE_ACCESS_ERROR = new Error("performance access"),
-		PERFORMANCE_PROXY = new Proxy({},{
-			get(target,property) {
-				throw PERFORMANCE_ACCESS_ERROR;
-			}
-		});
-	const benchtest = function(runner,{minCycles=10,maxCycles=100,sensitivity=.01,log="md",logStream=console,all,off,only}={}) {
-		benchtest.options = {minCycles:Math.min(minCycles,maxCycles),maxCycles,sensitivity,log,logStream,all,off,only};
-		if(runner) {
-			runner.on("suite", (suite) => {
-				beforeEach.call(suite,benchtest.test);
-				after.call(suite,() => {
-					benchtest.report(suite);
-					const messages = document.getElementById("messages");
-					if(messages) {
-						messages.innerHTML = ``
-					}
-				});
-			});
-			if(typeof(window!=="undefined")) {
-				runner.on("pass",function(test) {
-					if(benchtest.testable(test)) {
-						const elements = document.getElementsByTagName("H2");
-						for(const element of [].slice.call(elements)) {
-							if(element.innerText.indexOf(test.title)===0 && !ELEMENTS_SEEN.has(element)) {
-								ELEMENTS_SEEN.add(element);
-								const span = document.createElement("span"),
-									duration = test.performance.duration,
-									ops = Math.round(1000/duration),
-									variability = Math.round(test.performance.sensitivity*10000/duration)+"",
-									max = Math.round(1000/test.performance.min)+"",
-									min = Math.round(1000/test.performance.max)+"";
-								span.className = "speed";
-								span.innerText = ` ${ops} sec +/- ${duration===0 && variability===Infinity ? 0 : variability} min: ${min} max: ${max} ${test.performance.cycles} samples`;
-								element.insertBefore(span,element.firstElementChild);
-								break;
-							}
-						}
-					}
-				});
-			}
-		}
-		return runner;
-	};
-	benchtest.options = {minCycles:10,maxCycles:100,sensitivity:.01,log:"md",logStream:console};
-	benchtest.report = function(doneOrSuite) {
-		let widths = {
-				title: 4,
-				ops: 7,
-				variability: 3,
-				min: 3,
-				max: 3,
-				cycles: 6
-		};
-		const done = typeof(doneOrSuite)==="function" ? doneOrSuite : () => {},
-				suite =  typeof(doneOrSuite)==="function" ? SUITE : doneOrSuite;
-		if(!suite || !suite.tests) return;
-		widths.title = Math.max(suite.title.length,4);
-		const results = suite.tests.filter(test => test.performance!=null).map(test => {
-			const duration = test.performance.duration,
-				ops = Math.round(1000/duration)+"",
-				variability = Math.round(test.performance.sensitivity*10000/duration)+"",
-				max = Math.round(1000/test.performance.min)+"",
-				min = Math.round(1000/test.performance.max)+"",
-				cycles = test.performance.cycles+"",
-				errors = test.performance.errors+"",
-				result = {title:test.title,ops,variability,cycles,min,max,errors};
-			widths.title = Math.max(result.title.length,widths.title);
-			widths.ops = Math.max(ops.length,widths.ops);
-			widths.variability = Math.max(variability.length,widths.variability);
-			widths.min = Math.max(min.length,widths.min);
-			widths.max = Math.max(max.length,widths.max);
-			widths.cycles = Math.max(cycles.length,widths.cycles);
-			widths.errors = Math.max(errors.length,widths.errors||"Errors ".length);
-			return result;
-		});
-		if(results.length>0) {
-			const {log,logStream} = benchtest.options;
-			if(log==="md") {
-				const	head = `| ${suite.title.padEnd(widths.title," ")} | ${"Ops/Sec".padStart(widths.ops," ")} | ${"+/-".padStart(widths.variability," ")} | ${"Min".padStart(widths.min," ")} | ${"Max".padStart(widths.max," ")} | ${"Sample".padStart(widths.cycles," ")} | ${"Errors".padStart(widths.errors," ")}|\n`,
-					line = `| ${"-".padEnd(widths.title,"-")} | ${"-".padEnd(widths.ops,"-")}:| ${"-".padEnd(widths.variability,"-")}:| ${"-".padEnd(widths.min,"-")}:| ${"-".padEnd(widths.max,"-")}:| ${"-".padEnd(widths.cycles,"-")}:| ${"-".padEnd(widths.errors,"-")} | \n`,
-					body = results.reduce((accum,result) => {
-						accum += `| ${result.title.padEnd(widths.title," ")} | ${result.ops.padStart(widths.ops," ")} | ${result.variability.padStart(widths.variability," ")} | ${result.min.padStart(widths.min," ")} | ${result.max.padStart(widths.max," ")} | ${result.cycles.padStart(widths.cycles," ")} | ${result.errors.padStart(widths.errors," ")} |\n`;
-						return accum;
-					},"");
-					logStream.log(head+line+body);
-			} else if(log==="json") {
-				logStream.log(results);
-			}
-		}
-		done();
-	};
-	let SUITE;
-	benchtest.test = async function() {
-		const test = arguments[0] || this.currentTest; // don't move arguments[0] to an arg, it breaks Mocha
-		if(benchtest.testable(test)) {
-			const messages = document.getElementById("messages");
-			// declare all variables outside test loop to reduce garbage collection impact
-			if(test.parent!==SUITE) {
-				SUITE = test.parent;
-			}
-			const {maxCycles,minCycles,sensitivity} = benchtest.options,
-				fn = test.fn;
-			let min = Infinity,
-				max = -Infinity,
-				mean,
-				variance,
-				resolved,
-				begin,
-				end = null,
-				done = (value) => { end = perf.now(); resolved = value; return value; },
-				duration,
-				previous = 0,
-				delta,
-				start = perf.now(),
-				cycles = 0,
-				timeout = 0,
-				perftime = Math.abs(perf.now()-perf.now()),
-				memory = 0,
-				maxmemory = 0,
-				minmemory = 0,
-				meanmemory = 0,
-				variancememory = 0,
-				memories = [],
-				computetime = 0,
-				durations = [];
-			// make test object accessable inside of test
-			test.fn = fn.bind(test);
-			// use a special proxy so that performance checks are essentailly disabled during test loop
-			test.performance = PERFORMANCE_PROXY;
-			console.log(test.title,performance.memory)
-			let errors = 0;
-			while(++cycles<maxCycles) {
-				if(messages) {
-					messages.innerHTML = `Benchtesting ${test.title} cycle ${cycles} ...`
-				}
-				const startmemory = perf.memory.usedJSHeapSize;
-				
-				begin = perf.now();
-				try {
-					await test.fn.call(this,done); // result = 
-				} catch(e) {
-					if(e!==PERFORMANCE_ACCESS_ERROR) {
-						errors++;
-						continue;
-					}
-				}
-				if(end===null) end = perf.now();
-				const endmemory = perf.memory.usedJSHeapSize;
-				memory = endmemory - startmemory;
-				memories.push(memory);
-				maxmemory = Math.max(memory,maxmemory);
-				minmemory = Math.max(memory,minmemory);
-				meanmemory = memories.reduce((accum,memory) => accum += memory,0) / memories.length;
-				variancememory = memories.map(memory => memory - meanmemory).reduce((accum,memory) => accum += memory * memory,0)/memories.length;
-				duration = Math.max(0,(end - begin) - (perftime + computetime));
-				begin = perf.now();
-				if(timeout===0 && test._timeout>0) {
-					this.timeout(test._timeout*(maxCycles+5))
-				}
-				durations.push(duration);
-				delta = Math.abs(duration - previous) / duration;
-				max = Math.max(duration,max);
-				min = Math.min(duration,min);
-				mean = durations.reduce((accum,duration) => accum += duration,0) / durations.length;
-				variance = durations.map((duration) => duration - mean).reduce((accum,duration) => accum += duration * duration,0)/durations.length;
-				// exit if sensitivity criteria met and minCycles have been run
-				if(variance / mean <= sensitivity && cycles >= minCycles) {
-					computetime += (perf.now() - begin) + perftime;
-					break;
-				}
-				if(variance / mean > 5 && cycles >= minCycles) {
-					durations.pop(); // throw out probable GC
-				} else {
-					previous = duration;
-				}
-				end = null;
-				computetime += (perf.now() - begin) + perftime;
-			}
-			console.log(test.title,performance.memory)
-			duration = durations.filter((duration) => duration<=0).length / durations.length >= 0.8 ? 0 : (perf.now() - (start + computetime + perftime)) / cycles;
-			//duration = (perf.now() - start - computetime - perftime) / cycles;
-			const revised = durations.filter((duration) => duration!==min && duration!==max);
-			const avg = revised.reduce((accum,duration) => accum += duration,0)/revised.length;
-			test.performance = {cycles,duration,min,mean,max,sensitivity,errors,minmemory,meanmemory,maxmemory,variancememory};
-			console.log(test.title,test.performance);
-		}
-	}
-	benchtest.testable = function(test) {
-		return test.title[test.title.length-1]==="#";
-	}
-	if(typeof(module)!=="undefined") module.exports = benchtest;
-	if(typeof(window)!=="undefined") window.benchtest = benchtest;
-	
-}).call(this);
+import { performance } from "node:perf_hooks";
+import async_hooks from 'node:async_hooks';
+import process from "node:process";
+import vm from "node:vm"
+import v8 from "v8";
+
+v8.setFlagsFromString('--expose_gc');
+const gc = vm.runInNewContext('gc');
+
+import { max, min, mean, std, sum, variance } from 'mathjs/number';
+
+const OldPromise = global.Promise;
+global.Promise = class Promise extends OldPromise {
+    constructor(executor) {
+        super(executor); // call native Promise constructor
+        Promise.instances.add(this);
+    }
+}
+global.Promise.instances = new Set();
+
+const asyncTracker = new Map(),
+    asyncHook = async_hooks.createHook({
+        init: (asyncId, type, triggerAsyncId, resource) => {
+            asyncTracker.set(asyncId,{type,triggerAsyncId,resource})
+        },
+        destroy: asyncId => {
+            asyncTracker.delete(asyncId);
+        },
+        promiseResolve: asyncId => {
+            asyncTracker.delete(asyncId);
+        },
+    }),
+    trackAsync = (on) => {
+        if(on) {
+            if(!asyncTracker.enabled) {
+                asyncTracker.clear();
+                asyncHook.enable();
+            }
+        } else if(!on && asyncTracker.enabled){
+            asyncHook.disable();
+        }
+        asyncTracker.enabled = on;
+    };
+
+const objectDelta = (start,finish) => {
+    return Object.entries(start).reduce((delta,[key,value]) => {
+        if(typeof(value)==="number" && typeof(finish[key])==="number") {
+            delta[key] = finish[key] - value;
+        }
+        return delta;
+    },{})
+}
+
+const objectDeltaPercent = (start,finish) => {
+    return Object.entries(start).reduce((delta,[key,value]) => {
+        if(typeof(value)==="number" && typeof(finish[key])==="number") {
+            delta[key] = ((finish[key] / value) - 1) + "%";
+        }
+        return delta;
+    },{})
+}
+
+
+const issues = (summary) => {
+    const issues = {};
+    Object.entries(summary).forEach(([suiteName,summary]) => {
+        issues[suiteName] = {};
+        Object.entries(summary).forEach(([testName,testSummary]) => {
+            const expected = summary[testName].expected;
+            Object.entries(testSummary.memory?.delta||{}).forEach(([memoryType,value]) => {
+                if((expected.memory===true && value>0) || value > expected.memory[memoryType] || (expected.memory[memoryType]===undefined && value>0)) {
+                    issues[suiteName][testName] ||= {};
+                    issues[suiteName][testName][memoryType] = value;
+                }
+            })
+            if(testSummary.unresolvedPromises>0 && (expected.unresolvedPromises===true || testSummary.unresolvedPromises>expected.unresolvedPromises)) {
+                issues[suiteName][testName] ||= {};
+                issues[suiteName][testName].unresolvedPromises = testSummary.unresolvedPromises;
+            }
+            if(testSummary.unresolvedAsyncs>0 && (expected.unresolvedAsyncs===true || testSummary.unresolvedAsyncs>expected.unresolvedAsyncs)) {
+                issues[suiteName][testName] ||= {};
+                issues[suiteName][testName].unresolvedAsyncs = testSummary.unresolvedAsyncs;
+            }
+            Object.entries(testSummary.activeResources||{}).forEach(([resourceType,count]) => {
+                if((expected.activeResources===true && count>0) || expected.activeResources[resourceType]!==count || (expected.activeResources[resourceType]===undefined && count>0)) {
+                    issues[suiteName][testName] ||= {};
+                    issues[suiteName][testName][resourceType] = count;
+                }
+            });
+            if(issues[suiteName][testName]) {
+                issues[suiteName][testName].expected = expected;
+                summary[testName].issues = issues[testName];
+            }
+        })
+    })
+    return issues;
+}
+
+const summarize = (metrics) => {
+    const summary = {};
+    Object.entries(metrics).forEach(([suiteName,metrics]) => {
+        summary[suiteName] = {};
+        Object.entries(metrics).filter(([key]) => !["performance","cpu","memory","unresolvedPromises","unresolvedAsyncs","activeResources"].includes(key)).forEach(([testName, {memory,unresolvedPromises,unresolvedAsyncs,activeResources,samples,expected}]) => {
+            const testSummary = {cycles:samples?.length||0,memory,unresolvedPromises,unresolvedAsyncs,activeResources,expected},
+                durations = [],
+                cputime = {};
+            (samples||[]).forEach((sample) => {
+                if(metrics.performance) {
+                    durations.push(sample.performance);
+                }
+                if(metrics.cpu) {
+                    Object.entries(sample.cpu).forEach(([cpuType,value]) => {
+                        if(cpuType==="delta") {
+                            return;
+                        }
+                        cputime[cpuType] ||= [];
+                        cputime[cpuType].push(value);
+                    })
+                }
+            })
+
+            if(metrics.performance) {
+                const performance = testSummary.performance = {};
+                Object.defineProperty(performance,"count",{enumerable:true,get() { return durations.length }});
+                Object.defineProperty(performance,"sum",{enumerable:true,get() { return sum(durations)}});
+                Object.defineProperty(performance,"max",{enumerable:true,get() { return durations.length>0 ? max(durations) : undefined }});
+                Object.defineProperty(performance,"avg",{enumerable:true,get() { return durations.length>0 ? mean(durations) : undefined }});
+                Object.defineProperty(performance,"min",{enumerable:true,get() { return durations.length>0 ? min(durations) : undefined }});
+                Object.defineProperty(performance,"var",{enumerable:true,get() { return durations.length>0 ? variance(durations) : undefined }});
+                Object.defineProperty(performance,"stdev",{enumerable:true,get() { return durations.length>0 ? std(durations) : undefined }});
+
+                const opsSec = testSummary.opsSec = {},
+                    ops = durations.map((duration) => 1000 / duration);
+                Object.defineProperty(opsSec,"count",{enumerable:true,get() { return ops.length }});
+                Object.defineProperty(opsSec,"max",{enumerable:true,get() { return ops.length>0 ? max(ops) : undefined }});
+                Object.defineProperty(opsSec,"avg",{enumerable:true,get() { return ops.length>0 ? mean(ops) : undefined }});
+                Object.defineProperty(opsSec,"min",{enumerable:true,get() { return ops.length>0 ? min(ops) : undefined }});
+                Object.defineProperty(opsSec,"var",{enumerable:true,get() { return ops.length>0 ? variance(ops) : undefined }});
+                Object.defineProperty(opsSec,"stdev",{enumerable:true,get() { return ops.length>0 ? std(ops) : undefined }});
+            }
+
+            if(metrics.cpu) {
+                const cpu = testSummary.cpu = {};
+                Object.entries(cputime).forEach(([cpuType,values]) => {
+                    const o = cpu[cpuType] = {};
+                    Object.defineProperty(o,"count",{enumerable:true,get() { return values.length }});
+                    Object.defineProperty(o,"sum",{enumerable:true,get() { return sum(values)}});
+                    Object.defineProperty(o,"max",{enumerable:true,get() { return values.length>0 ? max(values) : undefined }});
+                    Object.defineProperty(o,"avg",{enumerable:true,get() { return values.length>0 ? mean(values) : undefined }});
+                    Object.defineProperty(o,"min",{enumerable:true,get() { return values.length>0 ? min(values) : undefined }});
+                    Object.defineProperty(o,"var",{enumerable:true,get() { return values.length>0 ? variance(values) : undefined }});
+                    Object.defineProperty(o,"stdev",{enumerable:true,get() { return values.length>0 ? std(values) : undefined }});
+                })
+            }
+
+            Object.entries(testSummary).forEach(([key,value]) => {
+                if(value===undefined) {
+                    delete testSummary[key];
+                }
+            })
+            summary[suiteName][testName] = testSummary;
+        })
+    });
+    return summary;
+}
+
+
+const _metrics = {},
+    metrics = () => {
+        return _metrics
+    };
+
+const benchtest = (testSpecFunction) => {
+    const _testSpecFunction = testSpecFunction;
+    return function(name,f,options) {
+        let timeout, cycles = 0, metrics;
+        if(typeof(options)==="number" || !options) {
+            timeout = options;
+            metrics = {memory:true, unresolvedPromises: true,unresolvedAsyncs:true,activeResources:true, sample:{size:100, cpu:true, performance:true}};
+            cycles = 100;
+        } else {
+            timeout = options.timeout;
+            cycles = options.sample?.size || cycles;
+            metrics = options.metrics;
+        }
+        if(metrics.memory && !cycles) {
+            cycles = 1;
+        }
+        if(typeof(metrics.memory)==="object") {
+            metrics.memory = {rss:false,heapTotal:false,heapUsed:false,external:false,arrayBuffers:false,...metrics.memory}
+        }
+        if(typeof(metrics.sample?.cpu)==="object") {
+            metrics.cpu = {user:0,system:0,...metrics.cpu}
+        }
+        const expected = {...metrics},
+            _f = f,
+            memory = metrics?.memory ? {} : undefined,
+            AsyncFunction = (async ()=>{}).constructor;
+        let sampleMetrics,
+            unresolvedPromises,
+            unresolvedAsyncs,
+            active,
+            activeResources;
+        if(f.constructor===AsyncFunction) {
+            f = async function()  {
+                let error;
+                if(metrics?.unresolvedPromises) {
+                    unresolvedPromises = Promise.instances?.size||0;
+                }
+                active = process.getActiveResourcesInfo().reduce((resources,item) => {
+                    resources[item] ||= 0;
+                    resources[item]++;
+                    return resources;
+                },{});
+                trackAsync(true);
+                await _f();
+                trackAsync(false);
+                if(metrics?.unresolvedPromises) {
+                    unresolvedPromises = (Promise.instances?.size || 0) - unresolvedPromises;
+                    if(typeof(metrics.unresolvedPromises)==="number") {
+                        try {
+                            expect(unresolvedPromises).withContext(`unrsolvedPromises`).toBe(metrics.unresolvedPromises);
+                        } catch(e) {
+                            error = e;
+                        }
+                    }
+                }
+                if(metrics?.unresolvedAsyncs) {
+                    unresolvedAsyncs = asyncTracker.size;
+                    if(typeof(metrics.unresolvedAsyncs)==="number") {
+                        try {
+                            expect(unresolvedAsyncs).withContext(`unresolvedAsyncs`).toBe(metrics.unresolvedAsyncs)
+                        } catch(e) {
+                            error ||= e;
+                        }
+                    }
+                }
+                if(metrics?.activeResources) {
+                    activeResources = process.getActiveResourcesInfo().reduce((resources,item) => {
+                        resources[item] ||= 0;
+                        resources[item]++;
+                        return resources;
+                    }, {});
+                    Object.entries(activeResources).forEach(([key,value]) => {
+                        if(value<=active[key]) {
+                            delete activeResources[key];
+                        } else {
+                            activeResources[key] = activeResources[key] - (active[key] || 0)
+                        }
+                    })
+                    if(typeof(metrics.activeResources)==="object") {
+                        for(const [type,value] of Object.entries(metrics.activeResources)) {
+                            if(typeof(value)==="number") {
+                                try {
+                                    expect(activeResources[type]).withContext(`activeResources[${type}]`).toBe(value);
+                                } catch(e) {
+                                    error ||= e;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                if(metrics) {
+                    gc();
+                    if(memory) {
+                        memory.start = process.memoryUsage();
+                    }
+                    gc();
+                    let cycle = 1;
+                    while(cycle<=cycles && !error) {
+                        sampleMetrics ||= [];
+                        const sample = {
+                            cycle,
+                            cpu: metrics.sample?.cpu ? process.cpuUsage() : undefined,
+                            performance: metrics.sample?.performance ? performance.now() : undefined
+                        }
+                        try {
+                            await _f();
+                        } catch(e) {
+                            error = e;
+                        } finally {
+                            if(sample.performance) {
+                                sample.performance = performance.now() - sample.performance;
+                                if(typeof(metrics.sample.performance)==="number") {
+                                    try {
+                                        expect(sample.performance).withContext(`performance`).toBeLessThanOrEqual(metrics.sample.performance)
+                                    } catch(e) {
+                                        error ||= e;
+                                    }
+                                }
+                            }
+                            if(sample.cpu) {
+                                sample.cpu = process.cpuUsage(sample.cpu);
+                                if(typeof(metrics.sample.cpu)==="object") {
+                                    for(const [type,max] of Object.entries(metrics.sample.cpu)) {
+                                        if(typeof(max)==="number") {
+                                            try {
+                                                expect(sample.cpu[type]).withContext(`cpu[${type}]`).toBeLessThanOrEqual(max);
+                                            } catch(e) {
+                                                error ||= e;
+                                                break;
+                                            }
+                                        } else if(!max) {
+                                            delete sample.cpu[type];
+                                        }
+                                    }
+                                }
+                            }
+                            sampleMetrics.push(sample);
+                            gc();
+                            cycle++;
+                        }
+                    }
+                    if(memory) {
+                        gc();
+                        memory.finish = process.memoryUsage();
+                        memory.delta = objectDelta(memory.start,memory.finish);
+                        memory.deltaPct = objectDeltaPercent(memory.start,memory.finish);
+                        if(typeof(metrics.memory)==="object") {
+                            for(const [type,max] of Object.entries(metrics.memory)) {
+                                if(typeof(max)==="number") {
+                                    try {
+                                        expect(memory.delta[type]).withContext(`memory[${type}]`).toBeLessThanOrEqual(max);
+                                    } catch(e) {
+                                        error ||= e;
+                                        break;
+                                    }
+                                } else if(!max) {
+                                    delete memory.start[type];
+                                    delete memory.finish[type];
+                                    delete memory.delta[type];
+                                    delete memory.deltaPct[type];
+                                }
+                            }
+                        }
+                    }
+                    metrics[name] = {
+                        memory,
+                        unresolvedPromises,
+                        unresolvedAsyncs,
+                        activeResources,
+                        samples: sampleMetrics,
+                        expected
+                    }
+                    Object.entries(metrics[name]).forEach(([key,value]) => {
+                        if(value===undefined) {
+                            delete metrics[name][key]
+                        }
+                    })
+                    _metrics[suiteName][name] = metrics[name];
+                    if(error) {
+                        throw error;
+                    }
+                }
+            }
+        } else {
+            f = function() {
+                let error;
+                if (metrics?.unresolvedPromises!=null) {
+                    unresolvedPromises = Promise.instances?.size || 0;
+                }
+                if(metrics?.unresolvedAsyncs!=null) {
+                    unresolvedAsyncs = asyncTracker.size;
+                }
+                active = process.getActiveResourcesInfo().reduce((resources, item) => {
+                    resources[item] ||= 0;
+                    resources[item]++;
+                    return resources;
+                }, {});
+                trackAsync(true);
+                _f();
+                trackAsync(false);
+                if(metrics?.unresolvedPromises!=null) {
+                    unresolvedPromises = (Promise.instances?.size || 0) - unresolvedPromises;
+                    if(typeof(metrics.unresolvedPromises)==="number") {
+                        try {
+                            expect(unresolvedPromises).withContext("unresolvedPromises").toBe(metrics.unresolvedPromises);
+                        } catch(e) {
+                            error = e;
+                        }
+                    }
+                }
+                if(metrics?.unresolvedAsyncs!=null) {
+                    unresolvedAsyncs = asyncTracker.size;
+                    if(typeof(metrics.unresolvedAsyncs)==="number") {
+                        try {
+                            expect(unresolvedAsyncs).withContext("unresolvedAsyncs").toBe(metrics.unresolvedAsyncs)
+                        } catch(e) {
+                            error ||= e;
+                        }
+                    }
+                }
+                if(metrics?.activeResources) {
+                    activeResources = process.getActiveResourcesInfo().reduce((resources, item) => {
+                        resources[item] ||= 0;
+                        resources[item]++;
+                        return resources;
+                    }, {});
+                    Object.entries(activeResources).forEach(([key, value]) => {
+                        if (value <= active[key]) {
+                            delete activeResources[key];
+                        } else {
+                            activeResources[key] = activeResources[key] - (active[key] || 0)
+                        }
+                    })
+                    if(typeof(metrics.activeResources)==="object") {
+                        for(const [type,value] of Object.entries(metrics.activeResources)) {
+                            if(typeof(value)==="number") {
+                                try {
+                                    expect(activeResources[type]).withContext(`activeResources[${type}]`).toBe(value);
+                                } catch(e) {
+                                    error ||= e;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                if (metrics) {
+                    gc();
+                    if (memory) {
+                        gc();
+                        memory.start = process.memoryUsage();
+                        gc();
+                    }
+                    let cycle = 1;
+                    while (cycle <= cycles && !error) {
+                        sampleMetrics ||= [];
+                        const sample = {
+                            cycle,
+                            cpu: metrics.sample?.cpu ? process.cpuUsage() : undefined,
+                            performance: metrics.sample?.performance ? performance.now() : undefined
+                        }
+                        try {
+                            _f();
+                        } catch (e) {
+                            error = e;
+                        } finally {
+                            if(sample.performance) {
+                                sample.performance = performance.now() - sample.performance;
+                                if(typeof(metrics.sample.performance)==="number") {
+                                    try {
+                                        expect(sample.performance).withContext(`performance`).toBeLessThanOrEqual(metrics.sample.performance)
+                                    } catch(e) {
+                                        error ||= e;
+                                    }
+                                }
+                            }
+                            if (sample.cpu) {
+                                sample.cpu = process.cpuUsage(sample.cpu);
+                                if(typeof(metrics.cpu)==="object") {
+                                    for(let [type,max] of Object.entries(metrics.sample.cpu)) {
+                                        if(max===true) {
+                                            max = 0;
+                                        }
+                                        if(typeof(max)==="number") {
+                                            try {
+                                                expect(sample.cpu[type]).withContext(`cpu[${type}]`).toBeLessThanOrEqual(max);
+                                            } catch(e) {
+                                                error ||= e;
+                                                break;
+                                            }
+                                        }  else if(!max) {
+                                            delete sample.cpu[type];
+                                        }
+                                    }
+                                }
+                            }
+                            sampleMetrics.push(sample);
+                            gc();
+                            cycle++;
+                        }
+                    }
+                    if (memory) {
+                        gc();
+                        memory.finish = process.memoryUsage();
+                        memory.delta = objectDelta(memory.start, memory.finish);
+                        memory.deltaPct = objectDeltaPercent(memory.start, memory.finish);
+                        if(typeof(metrics.memory)==="object") {
+                            for(let [type,max] of Object.entries(metrics.memory)) {
+                                if(max===true) {
+                                    max = 0;
+                                }
+                                if(typeof(max)==="number") {
+                                    try {
+                                        expect(memory.delta[type]).withContext(`memory[${type}]`).toBeLessThanOrEqual(max);
+                                    } catch(e) {
+                                        error ||= e;
+                                        break;
+                                    }
+                                }  else if(!max) {
+                                    delete memory.start[type];
+                                    delete memory.finish[type];
+                                    delete memory.delta[type];
+                                    delete memory.deltaPct[type];
+                                }
+                            }
+                        }
+                    }
+                   metrics[name] = {
+                        memory,
+                        unresolvedPromises,
+                        unresolvedAsyncs,
+                        activeResources,
+                        samples: sampleMetrics,
+                        expected
+                    }
+                    Object.entries(metrics[name]).forEach(([key,value]) => {
+                        if(value===undefined) {
+                            delete metrics[name][key]
+                        }
+                    })
+                    _metrics[suiteName][name] = metrics[name];
+                    if (error) {
+                        throw error;
+                    }
+                }
+            }
+        }
+        const spec = _testSpecFunction(name,f,timeout),
+            fullName = spec.getFullName(),
+            suiteName = fullName.substring(0,fullName.indexOf(name));
+        _metrics[suiteName] ||= {};
+        return spec;
+    }
+}
+
+benchtest.summarize = summarize;
+benchtest.issues = issues;
+benchtest.metrics = metrics;
+
+export {benchtest, benchtest as default}
