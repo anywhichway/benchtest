@@ -65,6 +65,7 @@ const asyncTracker = {created:new Map(),resolved:new Set(),rejected:new Set()},
                     this.catch(() => {
                         asyncTracker.rejected.add(this);
                     })
+                    // todo rewrite catch to watch fro unhandled rejecttions by counting for calls
                 }
                 MonkeyPromise.tracking = false;
             }
@@ -146,7 +147,7 @@ const summarize = (metrics) => {
     const summary = {};
     Object.entries(metrics).forEach(([suiteName,metrics]) => {
         summary[suiteName] = {};
-        Object.entries(metrics).filter(([key]) => !["performance","cpu","memory","pendingPromises","activeResources"].includes(key)).forEach(([testName, {memory,pendingPromises,activeResources,samples,expected}]) => {
+        Object.entries(metrics).filter(([key]) => !["sample","pendingPromises","activeResources"].includes(key)).forEach(([testName, {memory,pendingPromises,activeResources,samples,expected}]) => {
             const testSummary = {cycles:samples?.length||0,memory,pendingPromises,activeResources,expected},
                 durations = [],
                 cputime = {};
@@ -225,8 +226,20 @@ const benchtest = (testSpecFunction) => {
             timeout = options;
         } else {
             timeout = options.timeout;
-            metrics = options.metrics || {memory:true, pendingPromises: true,activeResources:true, sample:{size:100, memory:true, cpu:true, performance:true}};
-            cycles = typeof(options.sample?.size)==="number" ? options.sample?.size : (options.sample ? 100 : 0);
+            metrics = options.metrics || {memory:true, pendingPromises: true,activeResources:true, sample:{size:100}};
+            cycles = typeof(metrics.sample?.size)==="number" ? metrics.sample?.size : (metrics.sample ? 100 : 0);
+            if((typeof(metrics.sample)==="object" && metrics.sample.cpu==null && metrics.sample.performance==null) || metrics.sample) {
+                metrics.sample = {
+                    size: cycles,
+                    cpu: true,
+                    performance: true
+                }
+            }
+        }
+        if(metrics.sample?.opsSec===true && !metrics.sample.performance) {
+            metrics.sample.performance = true;
+        } else if(typeof(metrics.sample?.opsSec)==="number" && !metrics.sample.performance) {
+            metrics.sample.performance = metrics.sample.opsSec / 1000;
         }
         if(metrics.memory && !cycles) {
             cycles = 1;
@@ -234,8 +247,8 @@ const benchtest = (testSpecFunction) => {
         if(typeof(metrics.memory)==="object") {
             metrics.memory = {rss:false,heapTotal:false,heapUsed:false,external:false,arrayBuffers:false,...metrics.memory}
         }
-        if(typeof(metrics.sample?.cpu)==="object") {
-            metrics.cpu = {user:0,system:0,...metrics.cpu}
+        if(metrics.sample?.cpu===true) {
+            metrics.sample.cpu = {user:true,system:true}
         }
         const expected = {...metrics},
             _f = f,
@@ -468,7 +481,7 @@ const benchtest = (testSpecFunction) => {
                             }
                             if (sample.cpu) {
                                 sample.cpu = process.cpuUsage(sample.cpu);
-                                if(typeof(metrics.cpu)==="object") {
+                                if(typeof(metrics.sample.cpu)==="object") {
                                     for(let [type,max] of Object.entries(metrics.sample.cpu)) {
                                         if(max===true) {
                                             max = 0;

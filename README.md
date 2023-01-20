@@ -1,4 +1,4 @@
-# benchtest v3.0.0a
+# benchtest
 
 Integrated performance testing and resource tracking (memory, cpu, Promise, socket, etc) for unit testing. No special tests are needed. Re-uses existing unit tests.
 
@@ -129,6 +129,8 @@ Benchtest redefines the test specification function, monkey patches `Promise`, a
 The redefined test specification runs the original test once to track use of Promises, asyncs, and system resources other than memory. Then a sampling cycle is used for `memory`, `performance` and `cpu` utilization.
 
 ## Release History (reverse chronological order)
+
+2023-01-20 v3.0.4a Improved summary reporting.
 
 2023-01-20 v3.0.3a Corrected how some default metric specs are created. Eliminated remainder of async tracking. Fixed documentation version numbering in history.
 
