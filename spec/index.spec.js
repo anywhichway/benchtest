@@ -53,11 +53,11 @@ describe("main tests", () => {
 
     it("memtest1",() => {
         const text = "".padStart(1024,"a");
-    }, {metrics:{memory: {rss:false,external:false,heapTotal:false,heapUsed:0}}})
+    }, {metrics:{pendingPromises:false,activeResources:false, cpu: false, memory: {rss:false,external:false,heapTotal:false,heapUsed:0}}})
 
     it("memtest2",() => {
        garbage.push("".padStart(1024,"a"));
-    },{metrics:{memory: {rss:false,external:false,heapTotal:false,heapUsed:0}}})
+    },{metrics:{pendingPromises:false,activeResources:false, cpu: false, memory: {rss:false,external:false,heapTotal:false,heapUsed:0}}})
 
     afterAll(() => {
         const metrics = benchtest.metrics(),

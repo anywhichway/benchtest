@@ -1,12 +1,13 @@
 {
   "name": "benchtest",
-  "version": "v3.0.1a",
+  "version": "v3.0.2a",
   "description": "Integrated performance testing and resource tracking (memory, cpu, Promise, socket, etc) for unit testing",
   "engines": {},
   "license": "MIT",
   "type": "module",
   "main": "index.js",
   "scripts": {
+    "test": "jasmine",
     "test-jasmine": "jasmine"
   },
   "repository": {

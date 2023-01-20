@@ -221,13 +221,12 @@ const benchtest = (testSpecFunction) => {
     return function(name,f,options) {
         let timeout, cycles = 0, metrics;
         if(typeof(options)==="number" || !options) {
+            metrics = {};
             timeout = options;
-            metrics = {memory:true, pendingPromises: true,unresolvedAsyncs:true,activeResources:true, sample:{size:100, cpu:true, performance:true}};
-            cycles = 100;
         } else {
             timeout = options.timeout;
-            cycles = options.sample?.size || cycles;
-            metrics = options.metrics;
+            cycles = typeof(options.sample?.size)==="number" ? options.sample?.size : 100;
+            metrics = options.metrics || {memory:true, pendingPromises: true,unresolvedAsyncs:true,activeResources:true, sample:{size:100, cpu:true, performance:true}};
         }
         if(metrics.memory && !cycles) {
             cycles = 1;

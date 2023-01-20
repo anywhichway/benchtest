@@ -31,7 +31,9 @@ it = benchtest(it);
 
 ### Default Behavior
 
-By default all unit tests will now run and collect data regarding performance and Promise, async, memory, and cpu usage by running each test for 100 cycles.
+By default all unit tests with an object as a third argument will now run and collect data regarding performance and Promise, async, memory, and cpu usage by running each test for 100 cycles. Unit tests with a number (timeout) or no third argument will run normally.
+
+See [Configuring Tests](#configuring-tests) below for how to use the third argument.
 
 You can add an `afterAll` function to display the results:
 
@@ -46,7 +48,7 @@ console.log("Issues:",JSON.stringify(issues,null,2));
 
 ### Configuring Tests
 
-In place of the `timeout` value normally passed as the optional third argument to a test specification, you can pass a configuration object. All properties are optional.
+In place of the `timeout` value normally passed as the optional third argument to a test specification, you can pass a configuration object. All properties are optional. If you do not provide a `metrics` property, then all metrics are collected with a default sample size of 100.
 
 Providing `true` as a value simply turns on tracking. Providing a number ensures the runtime value is either `<=`, `=` depending on item tracked. The `memory`, `performance` and `cpu` metrics require sampling after the initial test is run and if a sample `size` is not provided, it defaults to 1. The other metrics are currently collected before sampling during normal test execution. Memory is sampled before the first and after the last sample cycle. If sampling is not requested for `performance` or `cpu`, a single cycle will be run to collect `memory` metrics.
 
@@ -127,6 +129,8 @@ Benchtest redefines the test specification function, monkey patches `Promise`, a
 The redefined test specification runs the original test once to track use of Promises, asyncs, and system resources other than memory. Then a sampling cycle is used for `memory`, `performance` and `cpu` utilization.
 
 ## Release History (reverse chronological order)
+
+2023-01-20 v30.0.2a Adjusted and clarified use of third argument to test spec.
 
 2023-01-20 v30.0.1a Consolidated async and Promise tracking
 
