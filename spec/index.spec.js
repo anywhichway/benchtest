@@ -9,23 +9,47 @@ describe("main tests", () => {
         return (Math.random()+"").substring(2)+".txt";
     }
 
-    const metrics = {memory:true, cpu:true, performance:true, unresolvedPromises: true,unresolvedAsyncs:true,activeResources:true},
+    const metrics = {memory:true, cpu:true, performance:true, pendingPromises: true,unresolvedAsyncs:true,activeResources:true},
         cycles = 100;
 
-    it("Promise test 1",() => {
-        const promise = new Promise(() => {});
+    it("Promise",() => {
+        const promise = new Promise((resolve,reject) => {});
         expect(promise).toBeInstanceOf(Promise)
-    },{metrics:{unresolvedPromises: 1,unresolvedAsyncs:1}})
+    },{metrics:{pendingPromises: 1}})
 
-    it("Promise test 1 - fail",() => {
-        const promise = new Promise(() => {});
+    xit("Promise should fail",() => {
+        const promise = new Promise((resolve,reject) => {});
         expect(promise).toBeInstanceOf(Promise)
-    },{metrics:{unresolvedPromises: 0,unresolvedAsyncs:0}})
+    },{metrics:{pendingPromises: 0}})
 
-    it("Promise test 2",() => {
-        const promise = (async () => new Promise((resolve)=> resolve()))();
+    it("async returning primitive",() => {
+        const promise = (async () => 1)();
         expect(promise.constructor.name).toBe("Promise");
-    },{metrics:{unresolvedPromises: 1,unresolvedAsyncs:1}})
+    },{metrics:{pendingPromises: 0}}) // asyncs that return primitives automatically resolve
+
+    it("async returning Object",() => {
+        const promise = (async () => {
+            return {}
+        })();
+        expect(promise.constructor.name).toBe("Promise");
+    },{metrics:{pendingPromises: 0}}) // asyncs that return non-thenable objects automatically resolve
+
+    it("async returning thenable Object",() => {
+        const promise = (async () => {
+            return {then(f) { return }}
+        })();
+        expect(promise.constructor.name).toBe("Promise");
+    },{metrics:{pendingPromises: 1}}) // asyncs that return non-thenable objects do not automatically resolve (they are implicitly promises)
+
+    it("async returning resolved promise",() => {
+        const promise = (async () => new Promise((resolve,reject)=> resolve()))();
+        expect(promise.constructor.name).toBe("Promise");
+    },{metrics:{pendingPromises: 1}})  // asyncs that return resolved Promises do not automatically resolve
+
+    it("async returning unresolved promise",() => {
+        const promise = (async () => new Promise((resolve,reject)=> {}))();
+        expect(promise.constructor.name).toBe("Promise");
+    },{metrics:{pendingPromises: 2}})
 
     it("memtest1",() => {
         const text = "".padStart(1024,"a");

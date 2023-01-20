@@ -32,37 +32,60 @@ const gc = vm.runInNewContext('gc');
 
 import { max, min, mean, std, sum, variance } from 'mathjs/number';
 
-const OldPromise = global.Promise;
-global.Promise = class Promise extends OldPromise {
-    constructor(executor) {
-        super(executor); // call native Promise constructor
-        Promise.instances.add(this);
-    }
-}
-global.Promise.instances = new Set();
-
-const asyncTracker = new Map(),
-    asyncHook = async_hooks.createHook({
-        init: (asyncId, type, triggerAsyncId, resource) => {
-            asyncTracker.set(asyncId,{type,triggerAsyncId,resource})
+const asyncTracker = {created:new Map(),resolved:new Set(),rejected:new Set()},
+    asyncHookOptions = {
+        init(asyncId, type, triggerAsyncId, resource){
+            if(!asyncHook.tracking) {
+                asyncHook.tracking = true;
+                if(!(asyncTracker.created.has(asyncId) || asyncTracker.created.has(triggerAsyncId))) {
+                    asyncTracker.created.set(asyncId,resource);
+                }
+                asyncHook.tracking = false;
+            }
         },
-        destroy: asyncId => {
-            asyncTracker.delete(asyncId);
-        },
-        promiseResolve: asyncId => {
-            asyncTracker.delete(asyncId);
-        },
-    }),
+        promiseResolve(asyncId) {
+            const promise = asyncTracker.created.get(asyncId);
+            if(promise) {
+                asyncTracker.resolved.add(promise);
+            }
+        }
+    },
+    OldPromise = global.Promise,
+    MonkeyPromise = class Promise extends OldPromise {
+        constructor(executor) {
+            super(executor); // call native Promise constructor
+            if(!MonkeyPromise.tracking) {
+                MonkeyPromise.tracking = true;
+                const [asyncId,triggerAsyncId] = Object.getOwnPropertySymbols(this).map((key) => this[key]);
+                if(!(asyncTracker.created.has(asyncId) || asyncTracker.created.has(triggerAsyncId))) {
+                    asyncTracker.created.set(asyncId, this);
+                    this.then(() => {
+                        asyncTracker.resolved.add(this);
+                    })
+                    this.catch(() => {
+                        asyncTracker.rejected.add(this);
+                    })
+                }
+                MonkeyPromise.tracking = false;
+            }
+        }
+    },
+    asyncHook = async_hooks.createHook(asyncHookOptions),
     trackAsync = (on) => {
         if(on) {
-            if(!asyncTracker.enabled) {
-                asyncTracker.clear();
+            if(!trackAsync.enabled) {
+                trackAsync.enabled = true;
+                Object.values(asyncTracker).forEach((map) => {
+                    map.clear();
+                })
                 asyncHook.enable();
+                global.Promise = MonkeyPromise;
             }
-        } else if(!on && asyncTracker.enabled){
+        } else if(!on && trackAsync.enabled){
+            trackAsync.enabled = false;
             asyncHook.disable();
+            global.Promise = Promise;
         }
-        asyncTracker.enabled = on;
     };
 
 const objectDelta = (start,finish) => {
@@ -96,9 +119,9 @@ const issues = (summary) => {
                     issues[suiteName][testName][memoryType] = value;
                 }
             })
-            if(testSummary.unresolvedPromises>0 && (expected.unresolvedPromises===true || testSummary.unresolvedPromises>expected.unresolvedPromises)) {
+            if(testSummary.pendingPromises>0 && (expected.pendingPromises===true || testSummary.pendingPromises>expected.pendingPromises)) {
                 issues[suiteName][testName] ||= {};
-                issues[suiteName][testName].unresolvedPromises = testSummary.unresolvedPromises;
+                issues[suiteName][testName].pendingPromises = testSummary.pendingPromises;
             }
             if(testSummary.unresolvedAsyncs>0 && (expected.unresolvedAsyncs===true || testSummary.unresolvedAsyncs>expected.unresolvedAsyncs)) {
                 issues[suiteName][testName] ||= {};
@@ -123,8 +146,8 @@ const summarize = (metrics) => {
     const summary = {};
     Object.entries(metrics).forEach(([suiteName,metrics]) => {
         summary[suiteName] = {};
-        Object.entries(metrics).filter(([key]) => !["performance","cpu","memory","unresolvedPromises","unresolvedAsyncs","activeResources"].includes(key)).forEach(([testName, {memory,unresolvedPromises,unresolvedAsyncs,activeResources,samples,expected}]) => {
-            const testSummary = {cycles:samples?.length||0,memory,unresolvedPromises,unresolvedAsyncs,activeResources,expected},
+        Object.entries(metrics).filter(([key]) => !["performance","cpu","memory","pendingPromises","unresolvedAsyncs","activeResources"].includes(key)).forEach(([testName, {memory,pendingPromises,unresolvedAsyncs,activeResources,samples,expected}]) => {
+            const testSummary = {cycles:samples?.length||0,memory,pendingPromises,unresolvedAsyncs,activeResources,expected},
                 durations = [],
                 cputime = {};
             (samples||[]).forEach((sample) => {
@@ -199,7 +222,7 @@ const benchtest = (testSpecFunction) => {
         let timeout, cycles = 0, metrics;
         if(typeof(options)==="number" || !options) {
             timeout = options;
-            metrics = {memory:true, unresolvedPromises: true,unresolvedAsyncs:true,activeResources:true, sample:{size:100, cpu:true, performance:true}};
+            metrics = {memory:true, pendingPromises: true,unresolvedAsyncs:true,activeResources:true, sample:{size:100, cpu:true, performance:true}};
             cycles = 100;
         } else {
             timeout = options.timeout;
@@ -220,15 +243,16 @@ const benchtest = (testSpecFunction) => {
             memory = metrics?.memory ? {} : undefined,
             AsyncFunction = (async ()=>{}).constructor;
         let sampleMetrics,
-            unresolvedPromises,
+            pendingPromises,
             unresolvedAsyncs,
             active,
             activeResources;
         if(f.constructor===AsyncFunction) {
             f = async function()  {
+                //trackAsync(false);
                 let error;
-                if(metrics?.unresolvedPromises) {
-                    unresolvedPromises = Promise.instances?.size||0;
+                if(metrics?.pendingPromises) {
+                    pendingPromises = Promise.instances?.size||0;
                 }
                 active = process.getActiveResourcesInfo().reduce((resources,item) => {
                     resources[item] ||= 0;
@@ -238,23 +262,13 @@ const benchtest = (testSpecFunction) => {
                 trackAsync(true);
                 await _f();
                 trackAsync(false);
-                if(metrics?.unresolvedPromises) {
-                    unresolvedPromises = (Promise.instances?.size || 0) - unresolvedPromises;
-                    if(typeof(metrics.unresolvedPromises)==="number") {
+                if(metrics?.pendingPromises) {
+                    pendingPromises = asyncTracker.created.size - (asyncTracker.resolved.size - asyncTracker.rejected.size);
+                    if(typeof(metrics.pendingPromises)==="number") {
                         try {
-                            expect(unresolvedPromises).withContext(`unrsolvedPromises`).toBe(metrics.unresolvedPromises);
+                            expect(pendingPromises).withContext(`unrsolvedPromises`).toBe(metrics.pendingPromises);
                         } catch(e) {
                             error = e;
-                        }
-                    }
-                }
-                if(metrics?.unresolvedAsyncs) {
-                    unresolvedAsyncs = asyncTracker.size;
-                    if(typeof(metrics.unresolvedAsyncs)==="number") {
-                        try {
-                            expect(unresolvedAsyncs).withContext(`unresolvedAsyncs`).toBe(metrics.unresolvedAsyncs)
-                        } catch(e) {
-                            error ||= e;
                         }
                     }
                 }
@@ -360,7 +374,7 @@ const benchtest = (testSpecFunction) => {
                     }
                     metrics[name] = {
                         memory,
-                        unresolvedPromises,
+                        pendingPromises,
                         unresolvedAsyncs,
                         activeResources,
                         samples: sampleMetrics,
@@ -379,9 +393,10 @@ const benchtest = (testSpecFunction) => {
             }
         } else {
             f = function() {
+               // trackAsync(false);
                 let error;
-                if (metrics?.unresolvedPromises!=null) {
-                    unresolvedPromises = Promise.instances?.size || 0;
+                if (metrics?.pendingPromises!=null) {
+                    pendingPromises = Promise.instances?.size || 0;
                 }
                 if(metrics?.unresolvedAsyncs!=null) {
                     unresolvedAsyncs = asyncTracker.size;
@@ -394,23 +409,13 @@ const benchtest = (testSpecFunction) => {
                 trackAsync(true);
                 _f();
                 trackAsync(false);
-                if(metrics?.unresolvedPromises!=null) {
-                    unresolvedPromises = (Promise.instances?.size || 0) - unresolvedPromises;
-                    if(typeof(metrics.unresolvedPromises)==="number") {
+                if(metrics?.pendingPromises!=null) {
+                    pendingPromises = asyncTracker.created.size - (asyncTracker.resolved.size - asyncTracker.rejected.size);
+                    if(typeof(metrics.pendingPromises)==="number") {
                         try {
-                            expect(unresolvedPromises).withContext("unresolvedPromises").toBe(metrics.unresolvedPromises);
+                            expect(pendingPromises).withContext("pendingPromises").toBe(metrics.pendingPromises);
                         } catch(e) {
                             error = e;
-                        }
-                    }
-                }
-                if(metrics?.unresolvedAsyncs!=null) {
-                    unresolvedAsyncs = asyncTracker.size;
-                    if(typeof(metrics.unresolvedAsyncs)==="number") {
-                        try {
-                            expect(unresolvedAsyncs).withContext("unresolvedAsyncs").toBe(metrics.unresolvedAsyncs)
-                        } catch(e) {
-                            error ||= e;
                         }
                     }
                 }
@@ -523,7 +528,7 @@ const benchtest = (testSpecFunction) => {
                     }
                    metrics[name] = {
                         memory,
-                        unresolvedPromises,
+                        pendingPromises,
                         unresolvedAsyncs,
                         activeResources,
                         samples: sampleMetrics,

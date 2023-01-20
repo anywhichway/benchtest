@@ -82,13 +82,15 @@ Providing `true` as a value simply turns on tracking. Providing a number ensures
 }
 ```
 
-`unresolvePromises` is the number of Promises that have been created but not resolved. The `unresolvedAsyncs` is the number of async function calls that have not resolved. The `unresolvedPromises` value may be larger than `unresolvedAsyncs`. These are tracked separately because async function calls can't be monkey patched like Promise. Although they return Promises, depending on the underlying engine, they may not use the global Promise class to create their Promises.
+`unresolvePromises` is the number of Promises that have been created but not resolved including async calls.
+
+*Note*: Async calls that return values that do not look like Promises automatically resolve during the Node evaluation cycle even if they are not awaited. Async calls that return Promises in any state or objects with a then property that is a function do not resolve until awaited.
 
 If your code uses third party libraries, you may find Promises, asyncs, and other resources being utilized that you did not expect. You can evaluate this by building unit test that only leverage the third party library and not any code that you have written to wrap the library.
 
 *Note*: If you run your test suite from anything but the command line, the tool you use, e.g. WebStorm, VisualStudio, may allocate external memory and you will get false errors when testing with a `memory.external` configuration.
 
-Here are a few examples. See `./sepc/inex.spec.js` for
+Here are a few examples. See `./sepc/inex.spec.js` for more examples
 
 ```javascript
     const garbage = [];
@@ -125,6 +127,8 @@ Benchtest redefines the test specification function, monkey patches `Promise`, a
 The redefined test specification runs the original test once to track use of Promises, asyncs, and system resources other than memory. Then a sampling cycle is used for `memory`, `performance` and `cpu` utilization.
 
 ## Release History (reverse chronological order)
+
+2023-01-20 v30.0.1a Consolidated async and Promise tracking
 
 2023-01-17 v3.0.0a Alpha of complete re-write that supports memory, Promise, timeout, socket and other resource traceability as well as performance testing. Use v2.0.7 for a stable release that only supports performance testing.
 
