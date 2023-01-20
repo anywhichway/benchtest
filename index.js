@@ -152,10 +152,10 @@ const summarize = (metrics) => {
                 durations = [],
                 cputime = {};
             (samples||[]).forEach((sample) => {
-                if(metrics.performance) {
+                if(sample.performance!=null) {
                     durations.push(sample.performance);
                 }
-                if(metrics.cpu) {
+                if(sample.cpu!=null) {
                     Object.entries(sample.cpu).forEach(([cpuType,value]) => {
                         if(cpuType==="delta") {
                             return;
@@ -170,7 +170,9 @@ const summarize = (metrics) => {
                 const performance = testSummary.performance = {};
                 Object.defineProperty(performance,"count",{enumerable:true,get() { return durations.length }});
                 Object.defineProperty(performance,"sum",{enumerable:true,get() { return sum(durations)}});
-                Object.defineProperty(performance,"max",{enumerable:true,get() { return durations.length>0 ? max(durations) : undefined }});
+                Object.defineProperty(performance,"max",{enumerable:true,get() {
+                    return durations.length>0 ? max(durations) : undefined
+                }});
                 Object.defineProperty(performance,"avg",{enumerable:true,get() { return durations.length>0 ? mean(durations) : undefined }});
                 Object.defineProperty(performance,"min",{enumerable:true,get() { return durations.length>0 ? min(durations) : undefined }});
                 Object.defineProperty(performance,"var",{enumerable:true,get() { return durations.length>0 ? variance(durations) : undefined }});
