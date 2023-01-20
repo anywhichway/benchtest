@@ -146,8 +146,8 @@ const summarize = (metrics) => {
     const summary = {};
     Object.entries(metrics).forEach(([suiteName,metrics]) => {
         summary[suiteName] = {};
-        Object.entries(metrics).filter(([key]) => !["performance","cpu","memory","pendingPromises","unresolvedAsyncs","activeResources"].includes(key)).forEach(([testName, {memory,pendingPromises,unresolvedAsyncs,activeResources,samples,expected}]) => {
-            const testSummary = {cycles:samples?.length||0,memory,pendingPromises,unresolvedAsyncs,activeResources,expected},
+        Object.entries(metrics).filter(([key]) => !["performance","cpu","memory","pendingPromises","activeResources"].includes(key)).forEach(([testName, {memory,pendingPromises,activeResources,samples,expected}]) => {
+            const testSummary = {cycles:samples?.length||0,memory,pendingPromises,activeResources,expected},
                 durations = [],
                 cputime = {};
             (samples||[]).forEach((sample) => {
@@ -225,8 +225,8 @@ const benchtest = (testSpecFunction) => {
             timeout = options;
         } else {
             timeout = options.timeout;
-            cycles = typeof(options.sample?.size)==="number" ? options.sample?.size : 100;
-            metrics = options.metrics || {memory:true, pendingPromises: true,unresolvedAsyncs:true,activeResources:true, sample:{size:100, cpu:true, performance:true}};
+            metrics = options.metrics || {memory:true, pendingPromises: true,activeResources:true, sample:{size:100, memory:true, cpu:true, performance:true}};
+            cycles = typeof(options.sample?.size)==="number" ? options.sample?.size : (options.sample ? 100 : 0);
         }
         if(metrics.memory && !cycles) {
             cycles = 1;
@@ -243,16 +243,12 @@ const benchtest = (testSpecFunction) => {
             AsyncFunction = (async ()=>{}).constructor;
         let sampleMetrics,
             pendingPromises,
-            unresolvedAsyncs,
             active,
             activeResources;
         if(f.constructor===AsyncFunction) {
             f = async function()  {
                 //trackAsync(false);
                 let error;
-                if(metrics?.pendingPromises) {
-                    pendingPromises = Promise.instances?.size||0;
-                }
                 active = process.getActiveResourcesInfo().reduce((resources,item) => {
                     resources[item] ||= 0;
                     resources[item]++;
@@ -374,7 +370,6 @@ const benchtest = (testSpecFunction) => {
                     metrics[name] = {
                         memory,
                         pendingPromises,
-                        unresolvedAsyncs,
                         activeResources,
                         samples: sampleMetrics,
                         expected
@@ -396,9 +391,6 @@ const benchtest = (testSpecFunction) => {
                 let error;
                 if (metrics?.pendingPromises!=null) {
                     pendingPromises = Promise.instances?.size || 0;
-                }
-                if(metrics?.unresolvedAsyncs!=null) {
-                    unresolvedAsyncs = asyncTracker.size;
                 }
                 active = process.getActiveResourcesInfo().reduce((resources, item) => {
                     resources[item] ||= 0;
@@ -528,7 +520,6 @@ const benchtest = (testSpecFunction) => {
                    metrics[name] = {
                         memory,
                         pendingPromises,
-                        unresolvedAsyncs,
                         activeResources,
                         samples: sampleMetrics,
                         expected

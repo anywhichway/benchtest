@@ -130,9 +130,11 @@ The redefined test specification runs the original test once to track use of Pro
 
 ## Release History (reverse chronological order)
 
-2023-01-20 v30.0.2a Adjusted and clarified use of third argument to test spec.
+2023-01-20 v3.0.3a Corrected how some default metric specs are created. Eliminated remainder of async tracking. Fixed documentation version numbering in history.
 
-2023-01-20 v30.0.1a Consolidated async and Promise tracking
+2023-01-20 v3.0.2a Adjusted and clarified use of third argument to test spec.
+
+2023-01-20 v3.0.1a Consolidated async and Promise tracking
 
 2023-01-17 v3.0.0a Alpha of complete re-write that supports memory, Promise, timeout, socket and other resource traceability as well as performance testing. Use v2.0.7 for a stable release that only supports performance testing.
 
