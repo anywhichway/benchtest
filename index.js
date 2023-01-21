@@ -107,6 +107,17 @@ const objectDeltaPercent = (start,finish) => {
     },{})
 }
 
+const copyExpected = (expected) => {
+    if(typeof(expected)!=="object" || expected==null) {
+        return expected;
+    }
+    return Object.entries(expected).reduce((expected,[key,value]) => {
+        if(value!==false && value!==true) {
+            expected[key] = copyExpected(value);
+        }
+        return expected;
+    },{})
+}
 
 const issues = (summary) => {
     const issues = {};
@@ -135,7 +146,7 @@ const issues = (summary) => {
                 }
             });
             if(issues[suiteName][testName]) {
-                issues[suiteName][testName].expected = expected;
+                issues[suiteName][testName].expected = copyExpected(expected);
                 summary[testName].issues = issues[testName];
             }
         })
@@ -148,7 +159,7 @@ const summarize = (metrics) => {
     Object.entries(metrics).forEach(([suiteName,metrics]) => {
         summary[suiteName] = {};
         Object.entries(metrics).filter(([key]) => !["sample","pendingPromises","activeResources"].includes(key)).forEach(([testName, {memory,pendingPromises,activeResources,samples,expected}]) => {
-            const testSummary = {cycles:samples?.length||0,memory,pendingPromises,activeResources,expected},
+            const testSummary = {cycles:samples?.length||0,memory,pendingPromises,activeResources,expected:copyExpected(expected)},
                 durations = [],
                 cputime = {};
             (samples||[]).forEach((sample) => {
@@ -157,11 +168,13 @@ const summarize = (metrics) => {
                 }
                 if(sample.cpu!=null) {
                     Object.entries(sample.cpu).forEach(([cpuType,value]) => {
-                        if(cpuType==="delta") {
-                            return;
+                        if(expected.sample.cpu[cpuType]!==false) {
+                            if(cpuType==="delta") {
+                                return;
+                            }
+                            cputime[cpuType] ||= [];
+                            cputime[cpuType].push(value);
                         }
-                        cputime[cpuType] ||= [];
-                        cputime[cpuType].push(value);
                     })
                 }
             })
@@ -203,7 +216,13 @@ const summarize = (metrics) => {
             }
 
             Object.entries(testSummary).forEach(([key,value]) => {
-                if(value===undefined) {
+                if(key==="performance" || key==="cpu" || key==="opsSec") {
+                    if(!expected.sample) {
+                        delete testSummary[key];
+                    }
+                    return;
+                }
+                if(key!=="expected" && key!=="cycles" &&  (value===undefined || expected[key]===false || expected[key]==null)) {
                     delete testSummary[key];
                 }
             })

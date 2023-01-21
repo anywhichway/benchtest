@@ -14,7 +14,7 @@ Note: This is an ALPHA release. For a stable release install 2.0.7 and use the d
 npm install benchtest@2.0.7 --save-dev
 ```
 
-# Usage
+## Usage
 
 *Note*: During ALPHA, the instructions apply to Jasmine. It is assumed you have installed and have working (https://jasmine.github.io/)[Jasmine] and Jasmine test specs. Support for other test harness will be added in BETA.
 
@@ -29,9 +29,13 @@ import {benchtest} from "../index.js";
 it = benchtest(it);
 ```
 
-### Default Behavior
+## Browser
 
-By default all unit tests with an object as a third argument will now run and collect data regarding performance and Promise, async, memory, and cpu usage by running each test for 100 cycles. Unit tests with a number (timeout) or no third argument will run normally.
+Not supported in ALPHA release
+
+## Default Behavior
+
+By default all unit tests with an object as a third argument will run and collect data regarding performance and Promise, async, memory, and cpu usage by running each test for 100 cycles. Unit tests with a number (timeout) or no third argument will run normally.
 
 See [Configuring Tests](#configuring-tests) below for how to use the third argument.
 
@@ -50,13 +54,14 @@ console.log("Issues:",JSON.stringify(issues,null,2));
 
 In place of the `timeout` value normally passed as the optional third argument to a test specification, you can pass a configuration object. All properties are optional. If you do not provide a `metrics` property, then all metrics are collected with a default sample size of 100.
 
-Providing `true` as a value simply turns on tracking. Providing a number ensures the runtime value is either `<=`, `=` depending on item tracked. The `memory`, `performance` and `cpu` metrics require sampling after the initial test is run and if a sample `size` is not provided, it defaults to 1. The other metrics are currently collected before sampling during normal test execution. Memory is sampled before the first and after the last sample cycle. If sampling is not requested for `performance` or `cpu`, a single cycle will be run to collect `memory` metrics.
+Providing `true` as a value simply turns on tracking. Providing a number ensures the runtime value is either `<=`, `=` depending on item tracked and will cause unit tests to fail if they do not satisfy the constraint. 
+
+The `memory`, `performance` and `cpu` metrics require sampling after the initial test is run and if a sample `size` is not provided, it defaults to 1. The other metrics are collected before sampling during normal test execution. Memory is sampled before the first and after the last sample cycle. If sampling is not requested for `performance` or `cpu`, a single cycle will be run to collect `memory` metrics.
 
 ```javascript
 {
   metrics: {
       unresolvedPromises: boolean | number, // ===
-      unresolvedAsyncs: boolean | number, // ===
       activeResources: boolean | {
           CloseReq: boolean | number, // ===
           ConnectWrap: boolean | number, // ===
@@ -83,12 +88,11 @@ Providing `true` as a value simply turns on tracking. Providing a number ensures
   timeout: number | undefined // milliseconds to wait for test completion
 }
 ```
-
 `unresolvePromises` is the number of Promises that have been created but not resolved including async calls.
 
-*Note*: Async calls that return values that do not look like Promises automatically resolve during the Node evaluation cycle even if they are not awaited. Async calls that return Promises in any state or objects with a then property that is a function do not resolve until awaited.
-
 If your code uses third party libraries, you may find Promises, asyncs, and other resources being utilized that you did not expect. You can evaluate this by building unit test that only leverage the third party library and not any code that you have written to wrap the library.
+
+*Note*: Async calls that return values that do not look like Promises automatically resolve during the Node evaluation cycle even if they are not awaited. Async calls that return Promises in any state or objects with a then property that is a function do not resolve until awaited.
 
 *Note*: If you run your test suite from anything but the command line, the tool you use, e.g. WebStorm, VisualStudio, may allocate external memory and you will get false errors when testing with a `memory.external` configuration.
 
@@ -115,20 +119,265 @@ Here are a few examples. See `./sepc/inex.spec.js` for more examples
     },{metrics:{memory: {heapUsed:0}}, sample:{performance:true,cpu:true}})
 ```
 
-## Browser
-
-Not supported in ALPHA release
-
 ## API
 
+### function benctest(function)
+
+`benchtest` takes the test harness test specification function and returns a redefined function capable of instrumenting tests.
+
+### object metrics()
+
+`metrics` returns an object containing all metrics for tests up to the point at which it is called. For Example:
+
+```json
+{
+  "main tests ": {
+    "async returning primitive": {
+      "pendingPromises": 0,
+      "expected": {
+        "pendingPromises": 0
+      }
+    },
+    "memtest1": {
+      "memory": {
+        "start": {
+          "heapUsed": 20090656
+        },
+        "finish": {
+          "heapUsed": 20090656
+        },
+        "delta": {
+          "heapUsed": 0
+        },
+        "deltaPct": {
+          "heapUsed": "0%"
+        }
+      },
+      "pendingPromises": 0,
+      "samples": [
+        {
+          "cycle": 1
+        }
+      ],
+      "expected": {
+        "pendingPromises": false,
+        "activeResources": false,
+        "memory": {
+          "rss": false,
+          "heapTotal": false,
+          "heapUsed": 0,
+          "external": false,
+          "arrayBuffers": false
+        }
+      }
+    },
+    "memtest2": {
+      "memory": {
+        "start": {
+          "heapUsed": 20124816
+        },
+        "finish": {
+          "heapUsed": 20126040
+        },
+        "delta": {
+          "heapUsed": 1224
+        },
+        "deltaPct": {
+          "heapUsed": "0.00006082043184885144%"
+        }
+      },
+      "pendingPromises": 0,
+      "samples": [
+        {
+          "cycle": 1
+        }
+      ],
+      "expected": {
+        "pendingPromises": false,
+        "activeResources": false,
+        "memory": {
+          "rss": false,
+          "heapTotal": false,
+          "heapUsed": 0,
+          "external": false,
+          "arrayBuffers": false
+        }
+      }
+    },
+    "performance": {
+      "samples": [
+        {
+          "cycle": 1,
+          "cpu": {
+            "user": 0,
+            "system": 0
+          },
+          "performance": 0.010699987411499023
+        },
+        {
+          "cycle": 2,
+          "cpu": {
+            "user": 0,
+            "system": 0
+          },
+          "performance": 0.009199976921081543
+        },
+        {
+          "cycle": 3,
+          "cpu": {
+            "user": 0,
+            "system": 0
+          },
+          "performance": 0.010300040245056152
+        },
+        {
+          "cycle": 4,
+          "cpu": {
+            "user": 0,
+            "system": 0
+          },
+          "performance": 0.010200023651123047
+        },
+        {
+          "cycle": 5,
+          "cpu": {
+            "user": 0,
+            "system": 0
+          },
+          "performance": 0.02890002727508545
+        }
+      ],
+      "expected": {
+        "sample": {
+          "size": 5,
+          "cpu": {
+            "user": true,
+            "system": true
+          },
+          "performance": true
+        }
+      }
+    }
+  }
+}
+```
+
+### object summarize(object metrics)
+
+`summarize` takes a `metrics` object and returns summarized data. For example:
+
+```json
+ {
+  "main tests ": {
+    "async returning primitive": {
+      "cycles": 0,
+      "pendingPromises": 0,
+      "expected": {
+        "pendingPromises": 0
+      }
+    },
+    "memtest1": {
+      "cycles": 1,
+      "memory": {
+        "start": {
+          "heapUsed": 20086976
+        },
+        "finish": {
+          "heapUsed": 20086960
+        },
+        "delta": {
+          "heapUsed": -16
+        },
+        "deltaPct": {
+          "heapUsed": "-7.96536024139094e-7%"
+        }
+      },
+      "expected": {
+        "memory": {
+          "heapUsed": 0
+        }
+      }
+    },
+    "memtest2": {
+      "cycles": 1,
+      "memory": {
+        "start": {
+          "heapUsed": 20093176
+        },
+        "finish": {
+          "heapUsed": 20094400
+        },
+        "delta": {
+          "heapUsed": 1224
+        },
+        "deltaPct": {
+          "heapUsed": "0.00006091620359072181%"
+        }
+      },
+      "expected": {
+        "memory": {
+          "heapUsed": 0
+        }
+      }
+    },
+    "performance": {
+      "cycles": 100,
+      "expected": {
+        "sample": {
+          "size": 100,
+          "cpu": {}
+        }
+      },
+      "performance": {
+        "count": 100,
+        "sum": 0.5365004539489746,
+        "max": 0.03100001811981201,
+        "avg": 0.005365004539489746,
+        "min": 0.003000020980834961,
+        "var": 0.00001665002049436464,
+        "stdev": 0.004080443663912619
+      },
+      "opsSec": {
+        "count": 100,
+        "max": 333331.0021457522,
+        "avg": 227690.45705979408,
+        "min": 32258.04566097667,
+        "var": 4533245263.869028,
+        "stdev": 67329.37890600973
+      }
+    }
+  }
+}
+```
+
+### object issues(object summary)
+
+`isseus` takes a summary data object and returns an object containing test names and metrics that to not satisfy the constraints provide in the configuration object passed as the third argument to a test. For example:
+
+```json
+{
+  "main tests ": {
+    "memtest2": {
+      "heapUsed": 1224,
+      "expected": {
+        "memory": {
+          "heapUsed": 0
+        }
+      }
+    }
+  }
+}
+```
 
 ## How Benchtest Works
 
-Benchtest redefines the test specification function, monkey patches `Promise`, and uses `async_hooks`, performance.now()`, `process.getActiveResourcesInfo()`, `process.cpuUsage()`, and `process.memoryUsage()` to track absolute and delta values for resources. It also manually manages the garbage collection process. Careful attention has been paid to reporting performance in a manner that is not impacted by the `gc()` calls, although the actual runtime of tests will obviously be impacted by garbage collection.
+Benchtest redefines the test specification function, monkey patches `Promise`, and uses `async_hooks`, `performance.now()`, `process.getActiveResourcesInfo()`, `process.cpuUsage()`, and `process.memoryUsage()` to track absolute and delta values for resources. It also manually manages the garbage collection process. Careful attention has been paid to reporting performance in a manner that is not impacted by the `gc()` calls, although the actual runtime of tests will obviously be impacted by garbage collection.
 
-The redefined test specification runs the original test once to track use of Promises, asyncs, and system resources other than memory. Then a sampling cycle is used for `memory`, `performance` and `cpu` utilization.
+The redefined test specification runs the original test once to track use of Promises, asyncs, and system resources other than memory. Then sampling cycles are used for `memory`, `performance` and `cpu` utilization.
 
 ## Release History (reverse chronological order)
+
+2023-01-21 v3.0.5a Improved reporting.
 
 2023-01-20 v3.0.4a Improved summary reporting.
 

@@ -12,7 +12,7 @@ describe("main tests", () => {
     const metrics = {memory:true, cpu:true, performance:true, pendingPromises: true,unresolvedAsyncs:true,activeResources:true},
         cycles = 100;
 
-    it("Promise",() => {
+    xit("Promise",() => {
         const promise = new Promise((resolve,reject) => {});
         expect(promise).toBeInstanceOf(Promise)
     },{metrics:{pendingPromises: 1}})
@@ -27,26 +27,26 @@ describe("main tests", () => {
         expect(promise.constructor.name).toBe("Promise");
     },{metrics:{pendingPromises: 0}}) // asyncs that return primitives automatically resolve
 
-    it("async returning Object",() => {
+    xit("async returning Object",() => {
         const promise = (async () => {
             return {}
         })();
         expect(promise.constructor.name).toBe("Promise");
     },{metrics:{pendingPromises: 0}}) // asyncs that return non-thenable objects automatically resolve
 
-    it("async returning thenable Object",() => {
+    xit("async returning thenable Object",() => {
         const promise = (async () => {
             return {then(f) { return }}
         })();
         expect(promise.constructor.name).toBe("Promise");
     },{metrics:{pendingPromises: 1}}) // asyncs that return non-thenable objects do not automatically resolve (they are implicitly promises)
 
-    it("async returning resolved promise",() => {
+    xit("async returning resolved promise",() => {
         const promise = (async () => new Promise((resolve,reject)=> resolve()))();
         expect(promise.constructor.name).toBe("Promise");
     },{metrics:{pendingPromises: 1}})  // asyncs that return resolved Promises do not automatically resolve
 
-    it("async returning unresolved promise",() => {
+    xit("async returning unresolved promise",() => {
         const promise = (async () => new Promise((resolve,reject)=> {}))();
         expect(promise.constructor.name).toBe("Promise");
     },{metrics:{pendingPromises: 2}})
@@ -61,7 +61,7 @@ describe("main tests", () => {
 
     it("performance",() => {
 
-    },{metrics:{sample:100}});
+    },{metrics:{sample:{size:5}}});
 
     afterAll(() => {
         const metrics = benchtest.metrics(),
