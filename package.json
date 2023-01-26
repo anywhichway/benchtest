@@ -1,6 +1,6 @@
 {
   "name": "benchtest",
-  "version": "v3.1.0b",
+  "version": "v3.1.1b",
   "description": "Integrated performance testing and resource tracking (memory, cpu, Promise, socket, etc) for unit testing",
   "engines": {},
   "license": "MIT",

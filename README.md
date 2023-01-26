@@ -55,7 +55,7 @@ console.log("Issues:",JSON.stringify(issues,null,2));
 
 In place of the `timeout` value normally passed as the optional third argument to a test specification, you can pass a configuration object. All properties are optional. If you do not provide a `metrics` property, then all metrics are collected with a default sample size of 100.
 
-Providing `true` as a value simply turns on tracking. Providing a number ensures the runtime value is either `<=`, `=` depending on item tracked and will cause unit tests to fail if they do not satisfy the constraint. 
+Providing `true` as a value simply turns on tracking so that you can use `metrics()` and `summary(metrics)` to support analysis of you code. Providing a number ensures the runtime value is  `<=` the value provided and will cause unit tests to fail if they do not satisfy the constraint. 
 
 The `memory`, `performance` and `cpu` metrics require sampling after the initial test is run and if a sample `size` is not provided, it defaults to 1. The other metrics are collected before sampling during normal test execution. Memory is sampled before the first and after the last sample cycle. If sampling is not requested for `performance` or `cpu`, a single cycle will be run to collect `memory` metrics.
 
@@ -382,6 +382,8 @@ Benchtest redefines the test sutie and test specification functions, monkey patc
 The redefined test specification runs the original test once to track use of Promises, asyncs, and system resources other than memory. Then sampling cycles are used for `memory`, `performance` and `cpu` utilization. The memory is tracked by calling `gc()` and getting `memoryUsage()` before any cycles are run and then again after all cycles are run. The `performance` and `cpu` metrics are tracked by calling `performance.now()` and `process.cpuUsage()` before and after each cycle. A `gc()` is called at the end of each cycle outside of the peformance tracking scope.
 
 ## Release History (reverse chronological order)
+
+2023-01-26 v3.0.2b Fixed issue related to collecting `activeResources` issues when reporting. Enhanced documentation.
 
 2023-01-26 v3.0.1b Added `'mocha` and `jest` support. Modified all test boundarys to use `<=`.
 

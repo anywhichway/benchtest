@@ -141,7 +141,12 @@ const issues = (summary) => {
                 issues[suiteName][testName].unresolvedAsyncs = testSummary.unresolvedAsyncs;
             }
             Object.entries(testSummary.activeResources||{}).forEach(([resourceType,count]) => {
-                if((expected.activeResources===true && count>0) || expected.activeResources[resourceType]!==count || (expected.activeResources[resourceType]===undefined && count>0)) {
+                if(expected.activeResources==null ||  expected.activeResources==false) {
+                    return;
+                } else if(expected.activeResources !== true && count>0) {
+                    expected.activeResources = {};
+                }
+                if(count>0 && (expected.activeResources===true) || expected.activeResources[resourceType]>count || (expected.activeResources[resourceType]===undefined)) {
                     issues[suiteName][testName] ||= {};
                     issues[suiteName][testName][resourceType] = count;
                 }
