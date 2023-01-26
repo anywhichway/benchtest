@@ -1,6 +1,8 @@
 # benchtest
 
-Integrated performance testing and resource tracking (memory, cpu, Promise, socket, etc) for unit testing. No special tests are needed. Re-uses existing unit tests.
+Integrated performance testing and resource tracking (memory, cpu, Promise, socket, etc) for unit testing. No special tests are needed. Re-uses existing unit tests for [Mocha](https://mochajs.org/), [Jest](https://jestjs.io/), and [Jasmine](https://jasmine.github.io/).
+
+*Note*: Benchtest should only be one part of your performance testing, you should also use simulators that emulate real world conditions and test your code at the application level to assess network impacts, module interactions, etc.
 
 ## Installation
 
@@ -8,7 +10,7 @@ Integrated performance testing and resource tracking (memory, cpu, Promise, sock
 npm install benchtest --save-dev
 ```
 
-Note: This is an ALPHA release. For a stable release install 2.0.7 and use the documentation from the install.
+Note: This is an BETA release. For a stable release install 2.0.7 and use the documentation from the install.
 
 ```
 npm install benchtest@2.0.7 --save-dev
@@ -16,30 +18,29 @@ npm install benchtest@2.0.7 --save-dev
 
 ## Usage
 
-*Note*: During ALPHA, the instructions apply to Jasmine. It is assumed you have installed and have working (https://jasmine.github.io/)[Jasmine] and Jasmine test specs. Support for other test harness will be added in BETA.
-
-*Note*: Benchtest should only be one part of your performance testing, you should also use simulators that emulate real world conditions and test your code at the application level to assess network impacts, module interactions, etc.
+*Note*: It is assumed you have installed and have working test suites and specs for your chosen test harness.
 
 ## Node
 
-Benchtest set-up can be done in as little two lines of code for [Node](https://nodejs.org/en/) projects at the head of your test spec file.
+Benchtest set-up can be done in as little three lines of code for [Node](https://nodejs.org/en/) projects at the head of your test spec file.
 
 ```javascript
-import {benchtest} from "../index.js";
-it = benchtest(it);
+import {benchtest} from "benchtest";
+it = benchtest.it(it);
+describe = benchtest.describe(describe);
 ```
 
 ## Browser
 
-Not supported in ALPHA release
+Not supported in BETA release.
 
 ## Default Behavior
 
-By default all unit tests with an object as a third argument will run and collect data regarding performance and Promise, async, memory, and cpu usage by running each test for 100 cycles. Unit tests with a number (timeout) or no third argument will run normally.
+By default, all unit tests with an object as a third argument will run and collect data regarding performance and Promise, async, memory, and cpu usage by running each test for 100 cycles. Unit tests with a number (timeout) or no third argument will run normally.
 
 See [Configuring Tests](#configuring-tests) below for how to use the third argument.
 
-You can add an `afterAll` function to display the results:
+You can add an and `after` function for Mocha or `afterAll` function for `Jest` or `Jasmine` to display the results:
 
 ```javascript
 const metrics = benchtest.metrics(),
@@ -60,17 +61,18 @@ The `memory`, `performance` and `cpu` metrics require sampling after the initial
 
 ```javascript
 {
-  metrics: {
-      unresolvedPromises: boolean | number, // ===
+    timeout: number | undefined, // milliseconds to wait for test completion
+    metrics: {
+      unresolvedPromises: boolean | number, // <=
       activeResources: boolean | {
-          CloseReq: boolean | number, // ===
-          ConnectWrap: boolean | number, // ===
-          Timeout: boolean | number, // ===
-          TCPSocketWrap: boolean | number, // ===
-          TTYWrap: boolean | number // ===
+          CloseReq: boolean | number, // <=
+          ConnectWrap: boolean | number, // <=
+          Timeout: boolean | number, // <=
+          TCPSocketWrap: boolean | number, // <=
+          TTYWrap: boolean | number // <=
       },
       sample: {
-          size: number,
+          size: number, // number of sample cycles to run, 100 is usually a good number, < 10 often sqews results
           memory: boolean | {
               rss: boolean | number, // <=  bytes
               heapTotal: boolean | number, // <=  bytes
@@ -84,17 +86,17 @@ The `memory`, `performance` and `cpu` metrics require sampling after the initial
               system: boolean | number, // <= microseconds cpu time
               }   
       }
-  },
-  timeout: number | undefined // milliseconds to wait for test completion
+    }
 }
 ```
+
 `unresolvePromises` is the number of Promises that have been created but not resolved including async calls.
 
 If your code uses third party libraries, you may find Promises, asyncs, and other resources being utilized that you did not expect. You can evaluate this by building unit test that only leverage the third party library and not any code that you have written to wrap the library.
 
 *Note*: Async calls that return values that do not look like Promises automatically resolve during the Node evaluation cycle even if they are not awaited. Async calls that return Promises in any state or objects with a then property that is a function do not resolve until awaited.
 
-*Note*: If you run your test suite from anything but the command line, the tool you use, e.g. WebStorm, VisualStudio, may allocate external memory and you will get false errors when testing with a `memory.external` configuration.
+*Note*: If you run your test suite from anything but the command line, the tool you use, e.g. WebStorm, VisualStudio, may allocate memory and you may get false errors when testing with a `memory` configuration.
 
 Here are a few examples. See `./sepc/inex.spec.js` for more examples
 
@@ -121,7 +123,11 @@ Here are a few examples. See `./sepc/inex.spec.js` for more examples
 
 ## API
 
-### function benctest(function)
+### function benchtest.describe(function)
+
+`benchtest` takes the test harness suite specification function and returns a redefined function capable of instrumenting tests.
+
+### function benchtest.it(function)
 
 `benchtest` takes the test harness test specification function and returns a redefined function capable of instrumenting tests.
 
@@ -371,13 +377,15 @@ Here are a few examples. See `./sepc/inex.spec.js` for more examples
 
 ## How Benchtest Works
 
-Benchtest redefines the test specification function, monkey patches `Promise`, and uses `async_hooks`, `performance.now()`, `process.getActiveResourcesInfo()`, `process.cpuUsage()`, and `process.memoryUsage()` to track absolute and delta values for resources. It also manually manages the garbage collection process. Careful attention has been paid to reporting performance in a manner that is not impacted by the `gc()` calls, although the actual runtime of tests will obviously be impacted by garbage collection.
+Benchtest redefines the test sutie and test specification functions, monkey patches `Promise`, and uses `async_hooks`, `performance.now()`, `process.getActiveResourcesInfo()`, `process.cpuUsage()`, and `process.memoryUsage()` to track absolute and delta values for resources. It also manually manages the garbage collection process. Careful attention has been paid to reporting performance in a manner that is not impacted by the `gc()` calls, although the actual runtime of tests will obviously be impacted by garbage collection.
 
-The redefined test specification runs the original test once to track use of Promises, asyncs, and system resources other than memory. Then sampling cycles are used for `memory`, `performance` and `cpu` utilization.
+The redefined test specification runs the original test once to track use of Promises, asyncs, and system resources other than memory. Then sampling cycles are used for `memory`, `performance` and `cpu` utilization. The memory is tracked by calling `gc()` and getting `memoryUsage()` before any cycles are run and then again after all cycles are run. The `performance` and `cpu` metrics are tracked by calling `performance.now()` and `process.cpuUsage()` before and after each cycle. A `gc()` is called at the end of each cycle outside of the peformance tracking scope.
 
 ## Release History (reverse chronological order)
 
-2023-01-21 v3.0.5a Improved reporting.
+2023-01-26 v3.0.1b Added `'mocha` and `jest` support. Modified all test boundarys to use `<=`.
+
+2023-01-21 v3.0.5a Improved reporting, ehanced documentation.
 
 2023-01-20 v3.0.4a Improved summary reporting.
 

@@ -26,6 +26,7 @@ import async_hooks from 'node:async_hooks';
 import process from "node:process";
 import vm from "node:vm"
 import v8 from "v8";
+import {expect} from "chai";
 
 v8.setFlagsFromString('--expose_gc');
 const gc = vm.runInNewContext('gc');
@@ -162,6 +163,7 @@ const summarize = (metrics) => {
             const testSummary = {cycles:samples?.length||0,memory,pendingPromises,activeResources,expected:copyExpected(expected)},
                 durations = [],
                 cputime = {};
+            let cpuSampled;
             (samples||[]).forEach((sample) => {
                 if(sample.performance!=null) {
                     durations.push(sample.performance);
@@ -169,6 +171,7 @@ const summarize = (metrics) => {
                 if(sample.cpu!=null) {
                     Object.entries(sample.cpu).forEach(([cpuType,value]) => {
                         if(expected.sample.cpu[cpuType]!==false) {
+                            cpuSampled = true;
                             if(cpuType==="delta") {
                                 return;
                             }
@@ -179,42 +182,62 @@ const summarize = (metrics) => {
                 }
             })
 
-            if(metrics.performance) {
+            if(durations.length>0) {
+                for(let i=0;i<=2 && durations.length>10;i--) {
+                    const maxi = durations.indexOf(max(durations));
+                    durations.splice(maxi, 1);
+                    const mini = durations.indexOf(min(durations));
+                    durations.splice(mini, 1);
+                }
                 const performance = testSummary.performance = {};
-                Object.defineProperty(performance,"count",{enumerable:true,get() { return durations.length }});
                 Object.defineProperty(performance,"sum",{enumerable:true,get() { return sum(durations)}});
-                Object.defineProperty(performance,"max",{enumerable:true,get() {
-                    return durations.length>0 ? max(durations) : undefined
-                }});
-                Object.defineProperty(performance,"avg",{enumerable:true,get() { return durations.length>0 ? mean(durations) : undefined }});
-                Object.defineProperty(performance,"min",{enumerable:true,get() { return durations.length>0 ? min(durations) : undefined }});
-                Object.defineProperty(performance,"var",{enumerable:true,get() { return durations.length>0 ? variance(durations) : undefined }});
-                Object.defineProperty(performance,"stdev",{enumerable:true,get() { return durations.length>0 ? std(durations) : undefined }});
+                Object.defineProperty(performance,"max",{enumerable:true,get() { return  max(durations)}});
+                Object.defineProperty(performance,"avg",{enumerable:true,get() { return  mean(durations)  }});
+                Object.defineProperty(performance,"min",{enumerable:true,get() { return min(durations)  }});
+                Object.defineProperty(performance,"var",{enumerable:true,get() { return variance(durations) }});
+                Object.defineProperty(performance,"stdev",{enumerable:true,get() { return std(durations) }});
 
                 const opsSec = testSummary.opsSec = {},
                     ops = durations.map((duration) => 1000 / duration);
-                Object.defineProperty(opsSec,"count",{enumerable:true,get() { return ops.length }});
-                Object.defineProperty(opsSec,"max",{enumerable:true,get() { return ops.length>0 ? max(ops) : undefined }});
-                Object.defineProperty(opsSec,"avg",{enumerable:true,get() { return ops.length>0 ? mean(ops) : undefined }});
-                Object.defineProperty(opsSec,"min",{enumerable:true,get() { return ops.length>0 ? min(ops) : undefined }});
-                Object.defineProperty(opsSec,"var",{enumerable:true,get() { return ops.length>0 ? variance(ops) : undefined }});
-                Object.defineProperty(opsSec,"stdev",{enumerable:true,get() { return ops.length>0 ? std(ops) : undefined }});
+                    Object.defineProperty(opsSec,"max",{enumerable:true,get() { return max(ops)}});
+                    Object.defineProperty(opsSec,"avg",{enumerable:true,get() { return mean(ops)}});
+                    Object.defineProperty(opsSec,"min",{enumerable:true,get() { return min(ops)}});
+                    Object.defineProperty(opsSec,"var",{enumerable:true,get() { return variance(ops)}});
+                    Object.defineProperty(opsSec,"stdev",{enumerable:true,get() { return std(ops)}});
+                    Object.defineProperty(opsSec,"+/-",{enumerable:true,get()  {
+                            const diff1 = this.max - this.avg,
+                                diff2 = this.avg - this.min;
+                            return (Math.max(diff1/this.avg,diff2/this.avg)*100).toFixed(2) + "%";
+                        }})
             }
-
-            if(metrics.cpu) {
+            if(cpuSampled) {
                 const cpu = testSummary.cpu = {};
                 Object.entries(cputime).forEach(([cpuType,values]) => {
+                    for(let i=0;i<=2 && values.length>10;i--) {
+                        const maxi = values.indexOf(max(values));
+                        values.splice(maxi, 1);
+                        const mini = values.indexOf(min(values));
+                        values.splice(mini, 1);
+                    }
                     const o = cpu[cpuType] = {};
-                    Object.defineProperty(o,"count",{enumerable:true,get() { return values.length }});
                     Object.defineProperty(o,"sum",{enumerable:true,get() { return sum(values)}});
                     Object.defineProperty(o,"max",{enumerable:true,get() { return values.length>0 ? max(values) : undefined }});
                     Object.defineProperty(o,"avg",{enumerable:true,get() { return values.length>0 ? mean(values) : undefined }});
                     Object.defineProperty(o,"min",{enumerable:true,get() { return values.length>0 ? min(values) : undefined }});
                     Object.defineProperty(o,"var",{enumerable:true,get() { return values.length>0 ? variance(values) : undefined }});
                     Object.defineProperty(o,"stdev",{enumerable:true,get() { return values.length>0 ? std(values) : undefined }});
+                    Object.defineProperty(o,"+/-",{enumerable:true,get()  {
+                            if(this.avg===0) {
+                                return "0%"
+                            }
+                            const diff1 = this.max - this.avg,
+                                diff2 = this.avg - this.min;
+                            return (Math.max(diff1/this.avg,diff2/this.avg)*100).toFixed(2) + "%";
+                        }})
                 })
-            }
 
+                delete testSummary.expected.sample.size;
+            }
             Object.entries(testSummary).forEach(([key,value]) => {
                 if(key==="performance" || key==="cpu" || key==="opsSec") {
                     if(!expected.sample) {
@@ -238,7 +261,14 @@ const _metrics = {},
         return _metrics
     };
 
-const benchtest = (testSpecFunction) => {
+const benchtest = {};
+
+benchtest.describe = (describeSpecification) => (name,fn) => {
+    benchtest.suiteName = name;
+    return describeSpecification(name,fn);
+};
+
+benchtest.it = benchtest.test = (testSpecFunction) => {
     const _testSpecFunction = testSpecFunction;
     return function(name,f,options) {
         let timeout, cycles = 0, metrics;
@@ -295,8 +325,9 @@ const benchtest = (testSpecFunction) => {
                     pendingPromises = asyncTracker.created.size - (asyncTracker.resolved.size - asyncTracker.rejected.size);
                     if(typeof(metrics.pendingPromises)==="number") {
                         try {
-                            expect(pendingPromises).withContext(`unrsolvedPromises`).toBe(metrics.pendingPromises);
+                            expect(pendingPromises).to.be.lessThanOrEqual(metrics.pendingPromises);
                         } catch(e) {
+                            e.message += ' when checking pendingPromises';
                             error = e;
                         }
                     }
@@ -318,8 +349,9 @@ const benchtest = (testSpecFunction) => {
                         for(const [type,value] of Object.entries(metrics.activeResources)) {
                             if(typeof(value)==="number") {
                                 try {
-                                    expect(activeResources[type]).withContext(`activeResources[${type}]`).toBe(value);
+                                    expect(activeResources[type]).to.be.lessThanOrEqual(value);
                                 } catch(e) {
+                                    e.message += ` when checking activeResources[${type}]`;
                                     error ||= e;
                                     break;
                                 }
@@ -350,8 +382,9 @@ const benchtest = (testSpecFunction) => {
                                 sample.performance = performance.now() - sample.performance;
                                 if(typeof(metrics.sample.performance)==="number") {
                                     try {
-                                        expect(sample.performance).withContext(`performance`).toBeLessThanOrEqual(metrics.sample.performance)
+                                        expect(sample.performance).to.be.lessThanOrEqual(metrics.sample.performance)
                                     } catch(e) {
+                                        e.message += ` when checking performance`;
                                         error ||= e;
                                     }
                                 }
@@ -362,8 +395,9 @@ const benchtest = (testSpecFunction) => {
                                     for(const [type,max] of Object.entries(metrics.sample.cpu)) {
                                         if(typeof(max)==="number") {
                                             try {
-                                                expect(sample.cpu[type]).withContext(`cpu[${type}]`).toBeLessThanOrEqual(max);
+                                                expect(sample.cpu[type]).to.be.lessThanOrEqual(max);
                                             } catch(e) {
+                                                e.message += ` when checking cpu[${type}]`;
                                                 error ||= e;
                                                 break;
                                             }
@@ -387,8 +421,9 @@ const benchtest = (testSpecFunction) => {
                             for(const [type,max] of Object.entries(metrics.memory)) {
                                 if(typeof(max)==="number") {
                                     try {
-                                        expect(memory.delta[type]).withContext(`memory[${type}]`).toBeLessThanOrEqual(max);
+                                        expect(memory.delta[type]).to.be.lessThanOrEqual(max);
                                     } catch(e) {
+                                        e.message += ` when checking memory[${type}]`;
                                         error ||= e;
                                         break;
                                     }
@@ -438,8 +473,9 @@ const benchtest = (testSpecFunction) => {
                     pendingPromises = asyncTracker.created.size - (asyncTracker.resolved.size - asyncTracker.rejected.size);
                     if(typeof(metrics.pendingPromises)==="number") {
                         try {
-                            expect(pendingPromises).withContext("pendingPromises").toBe(metrics.pendingPromises);
+                            expect(pendingPromises).to.be.lessThanOrEqual(metrics.pendingPromises);
                         } catch(e) {
+                            e.message += ` when checking pendingPromises`;
                             error = e;
                         }
                     }
@@ -461,8 +497,9 @@ const benchtest = (testSpecFunction) => {
                         for(const [type,value] of Object.entries(metrics.activeResources)) {
                             if(typeof(value)==="number") {
                                 try {
-                                    expect(activeResources[type]).withContext(`activeResources[${type}]`).toBe(value);
+                                    expect(activeResources[type]).to.be.lessThanOrEqual(value);
                                 } catch(e) {
+                                    e.message += ' when checking activeResources'
                                     error ||= e;
                                     break;
                                 }
@@ -494,8 +531,9 @@ const benchtest = (testSpecFunction) => {
                                 sample.performance = performance.now() - sample.performance;
                                 if(typeof(metrics.sample.performance)==="number") {
                                     try {
-                                        expect(sample.performance).withContext(`performance`).toBeLessThanOrEqual(metrics.sample.performance)
+                                        expect(sample.performance).to.be.lessThanOrEqual(metrics.sample.performance)
                                     } catch(e) {
+                                        e.message += ' when checking performance';
                                         error ||= e;
                                     }
                                 }
@@ -504,13 +542,11 @@ const benchtest = (testSpecFunction) => {
                                 sample.cpu = process.cpuUsage(sample.cpu);
                                 if(typeof(metrics.sample.cpu)==="object") {
                                     for(let [type,max] of Object.entries(metrics.sample.cpu)) {
-                                        if(max===true) {
-                                            max = 0;
-                                        }
                                         if(typeof(max)==="number") {
                                             try {
-                                                expect(sample.cpu[type]).withContext(`cpu[${type}]`).toBeLessThanOrEqual(max);
+                                               expect(sample.cpu[type]).to.be.lessThanOrEqual(max);
                                             } catch(e) {
+                                                e.message += ` when checking cpu[${type}]`;
                                                 error ||= e;
                                                 break;
                                             }
@@ -537,8 +573,9 @@ const benchtest = (testSpecFunction) => {
                                 }
                                 if(typeof(max)==="number") {
                                     try {
-                                        expect(memory.delta[type]).withContext(`memory[${type}]`).toBeLessThanOrEqual(max);
+                                        expect(memory.delta[type]).to.be.lessThanOrEqual(max);
                                     } catch(e) {
+                                        e.message += ` when checking memory[${type}]`;
                                         error ||= e;
                                         break;
                                     }
@@ -571,8 +608,7 @@ const benchtest = (testSpecFunction) => {
             }
         }
         const spec = _testSpecFunction(name,f,timeout),
-            fullName = spec.getFullName(),
-            suiteName = fullName.substring(0,fullName.indexOf(name));
+            suiteName = benchtest.suiteName;
         _metrics[suiteName] ||= {};
         return spec;
     }

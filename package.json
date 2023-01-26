@@ -1,6 +1,6 @@
 {
   "name": "benchtest",
-  "version": "v3.0.5a",
+  "version": "v3.1.0b",
   "description": "Integrated performance testing and resource tracking (memory, cpu, Promise, socket, etc) for unit testing",
   "engines": {},
   "license": "MIT",
@@ -8,7 +8,9 @@
   "main": "index.js",
   "scripts": {
     "test": "jasmine",
-    "test-jasmine": "jasmine"
+    "test-mocha": "c8 node_modules/mocha/bin/mocha ./spec/index.spec.js",
+    "test-jasmine": "c8 npm test",
+    "test-jest": "node --experimental-vm-modules node_modules/jest/bin/jest ./spec/index.spec.js --collectCoverage --coverageDirectory=coverage"
   },
   "repository": {
     "type": "git",
@@ -18,8 +20,14 @@
     "mocha",
     "jasmine",
     "benchmark",
+    "c8",
+    "nyc",
+    "instanbul",
     "memory",
     "performance",
+    "coverage",
+    "memory",
+    "cpu",
     "jsperf"
   ],
   "author": "Simon Y. Blackwell <syblackwell@anywhichway.com> (http://www.github.com/anywhichway)",
@@ -28,10 +36,13 @@
   },
   "homepage": "https://github.com/anywhichway/benchtest#readme",
   "devDependencies": {
-
+    "c8": "^7.12.0",
+    "jest": "^29.4.0",
+    "mocha": "^10.2.0",
+    "jasmine": "^4.5.0"
   },
   "dependencies": {
-    "jasmine": "^4.5.0",
+    "chai": "^4.3.7",
     "mathjs": "^11.5.0"
   }
 }
