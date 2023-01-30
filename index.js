@@ -345,26 +345,22 @@ $cf838c15c8b009ba$export$195db9932151140f.it = $cf838c15c8b009ba$export$195db993
     const _testSpecFunction = testSpecFunction;
     return function(name, f, options) {
         let timeout, cycles = 0, metrics;
-        if (typeof options === "number" || !options) {
-            metrics = {};
-            timeout = options;
-        } else {
-            timeout = options.timeout;
-            metrics = options.metrics || {
-                memory: true,
-                pendingPromises: true,
-                activeResources: true,
-                sample: {
-                    size: 100
-                }
-            };
-            cycles = typeof metrics.sample?.size === "number" ? metrics.sample?.size : metrics.sample ? 100 : 0;
-            if (typeof metrics.sample === "object" && metrics.sample.cpu == null && metrics.sample.performance == null || metrics.sample) metrics.sample = {
-                size: cycles,
-                cpu: true,
-                performance: true
-            };
-        }
+        if (typeof options === "number" || !options) return _testSpecFunction(name, f, options);
+        timeout = options.timeout;
+        metrics = options.metrics || {
+            memory: true,
+            pendingPromises: true,
+            activeResources: true,
+            sample: {
+                size: 100
+            }
+        };
+        cycles = typeof metrics.sample?.size === "number" ? metrics.sample?.size : metrics.sample ? 100 : 0;
+        if (typeof metrics.sample === "object" && metrics.sample.cpu == null && metrics.sample.performance == null || metrics.sample) metrics.sample = {
+            size: cycles,
+            cpu: true,
+            performance: true
+        };
         if (metrics.sample?.opsSec === true && !metrics.sample.performance) metrics.sample.performance = true;
         else if (typeof metrics.sample?.opsSec === "number" && !metrics.sample.performance) metrics.sample.performance = metrics.sample.opsSec / 1000;
         if (metrics.memory && !cycles) cycles = 1;
