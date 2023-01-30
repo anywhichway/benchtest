@@ -1,16 +1,21 @@
 {
   "name": "benchtest",
-  "version": "v3.1.1b",
+  "version": "v3.1.3b",
   "description": "Integrated performance testing and resource tracking (memory, cpu, Promise, socket, etc) for unit testing",
   "engines": {},
   "license": "MIT",
   "type": "module",
-  "main": "index.js",
+  "source": "/src/index.js",
+  "module": "./index.js",
+  "main": "/dist/benchtest.js",
   "scripts": {
     "test": "jasmine",
     "test-mocha": "c8 node_modules/mocha/bin/mocha ./spec/index.spec.js",
     "test-jasmine": "c8 npm test",
-    "test-jest": "node --experimental-vm-modules node_modules/jest/bin/jest ./spec/index.spec.js --collectCoverage --coverageDirectory=coverage"
+    "test-jest": "node --experimental-vm-modules node_modules/jest/bin/jest ./spec/index.spec.js --collectCoverage --coverageDirectory=coverage",
+    "build": "parcel build ./src/index.js",
+    "watch": "parcel watch ./src/index.js",
+    "prepublish": "npm run build"
   },
   "repository": {
     "type": "git",
@@ -37,9 +42,10 @@
   "homepage": "https://github.com/anywhichway/benchtest#readme",
   "devDependencies": {
     "c8": "^7.12.0",
+    "jasmine": "^4.5.0",
     "jest": "^29.4.0",
     "mocha": "^10.2.0",
-    "jasmine": "^4.5.0"
+    "parcel": "^2.8.3"
   },
   "dependencies": {
     "chai": "^4.3.7",

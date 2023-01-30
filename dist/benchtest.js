@@ -1,10 +1,10 @@
-import {performance as $l7i9T$performance} from "node:perf_hooks";
-import $l7i9T$nodeasync_hooks from "node:async_hooks";
-import $l7i9T$nodeprocess from "node:process";
-import $l7i9T$nodevm from "node:vm";
-import $l7i9T$v8 from "v8";
-import {expect as $l7i9T$expect} from "chai";
-import {max as $l7i9T$max, min as $l7i9T$min, sum as $l7i9T$sum, mean as $l7i9T$mean, variance as $l7i9T$variance, std as $l7i9T$std} from "mathjs/number";
+import {performance as $5OpyM$performance} from "node:perf_hooks";
+import $5OpyM$nodeasync_hooks from "node:async_hooks";
+import $5OpyM$nodeprocess from "node:process";
+import $5OpyM$nodevm from "node:vm";
+import $5OpyM$v8 from "v8";
+import {expect as $5OpyM$expect} from "chai";
+import {max as $5OpyM$max, min as $5OpyM$min, sum as $5OpyM$sum, mean as $5OpyM$mean, variance as $5OpyM$variance, std as $5OpyM$std} from "mathjs/number";
 
 var $parcel$global =
 typeof globalThis !== 'undefined'
@@ -45,8 +45,8 @@ SOFTWARE.
 
 
 
-(0, $l7i9T$v8).setFlagsFromString("--expose_gc");
-const $cf838c15c8b009ba$var$gc = (0, $l7i9T$nodevm).runInNewContext("gc");
+(0, $5OpyM$v8).setFlagsFromString("--expose_gc");
+const $cf838c15c8b009ba$var$gc = (0, $5OpyM$nodevm).runInNewContext("gc");
 const $cf838c15c8b009ba$var$asyncTracker = {
     created: new Map(),
     resolved: new Set(),
@@ -82,7 +82,7 @@ const $cf838c15c8b009ba$var$asyncTracker = {
             $cf838c15c8b009ba$var$MonkeyPromise.tracking = false;
         }
     }
-}, $cf838c15c8b009ba$var$asyncHook = (0, $l7i9T$nodeasync_hooks).createHook($cf838c15c8b009ba$var$asyncHookOptions), $cf838c15c8b009ba$var$trackAsync = (on)=>{
+}, $cf838c15c8b009ba$var$asyncHook = (0, $5OpyM$nodeasync_hooks).createHook($cf838c15c8b009ba$var$asyncHookOptions), $cf838c15c8b009ba$var$trackAsync = (on)=>{
     if (on) {
         if (!$cf838c15c8b009ba$var$trackAsync.enabled) {
             $cf838c15c8b009ba$var$trackAsync.enabled = true;
@@ -183,77 +183,77 @@ const $cf838c15c8b009ba$var$summarize = (metrics)=>{
             });
             if (durations.length > 0) {
                 for(let i = 0; i <= 2 && durations.length > 10; i--){
-                    const maxi = durations.indexOf((0, $l7i9T$max)(durations));
+                    const maxi = durations.indexOf((0, $5OpyM$max)(durations));
                     durations.splice(maxi, 1);
-                    const mini = durations.indexOf((0, $l7i9T$min)(durations));
+                    const mini = durations.indexOf((0, $5OpyM$min)(durations));
                     durations.splice(mini, 1);
                 }
                 const performance = testSummary.performance = {};
                 Object.defineProperty(performance, "sum", {
                     enumerable: true,
                     get () {
-                        return (0, $l7i9T$sum)(durations);
+                        return (0, $5OpyM$sum)(durations);
                     }
                 });
                 Object.defineProperty(performance, "max", {
                     enumerable: true,
                     get () {
-                        return (0, $l7i9T$max)(durations);
+                        return (0, $5OpyM$max)(durations);
                     }
                 });
                 Object.defineProperty(performance, "avg", {
                     enumerable: true,
                     get () {
-                        return (0, $l7i9T$mean)(durations);
+                        return (0, $5OpyM$mean)(durations);
                     }
                 });
                 Object.defineProperty(performance, "min", {
                     enumerable: true,
                     get () {
-                        return (0, $l7i9T$min)(durations);
+                        return (0, $5OpyM$min)(durations);
                     }
                 });
                 Object.defineProperty(performance, "var", {
                     enumerable: true,
                     get () {
-                        return (0, $l7i9T$variance)(durations);
+                        return (0, $5OpyM$variance)(durations);
                     }
                 });
                 Object.defineProperty(performance, "stdev", {
                     enumerable: true,
                     get () {
-                        return (0, $l7i9T$std)(durations);
+                        return (0, $5OpyM$std)(durations);
                     }
                 });
                 const opsSec = testSummary.opsSec = {}, ops = durations.map((duration)=>1000 / duration);
                 Object.defineProperty(opsSec, "max", {
                     enumerable: true,
                     get () {
-                        return (0, $l7i9T$max)(ops);
+                        return (0, $5OpyM$max)(ops);
                     }
                 });
                 Object.defineProperty(opsSec, "avg", {
                     enumerable: true,
                     get () {
-                        return (0, $l7i9T$mean)(ops);
+                        return (0, $5OpyM$mean)(ops);
                     }
                 });
                 Object.defineProperty(opsSec, "min", {
                     enumerable: true,
                     get () {
-                        return (0, $l7i9T$min)(ops);
+                        return (0, $5OpyM$min)(ops);
                     }
                 });
                 Object.defineProperty(opsSec, "var", {
                     enumerable: true,
                     get () {
-                        return (0, $l7i9T$variance)(ops);
+                        return (0, $5OpyM$variance)(ops);
                     }
                 });
                 Object.defineProperty(opsSec, "stdev", {
                     enumerable: true,
                     get () {
-                        return (0, $l7i9T$std)(ops);
+                        return (0, $5OpyM$std)(ops);
                     }
                 });
                 Object.defineProperty(opsSec, "+/-", {
@@ -268,46 +268,46 @@ const $cf838c15c8b009ba$var$summarize = (metrics)=>{
                 const cpu = testSummary.cpu = {};
                 Object.entries(cputime).forEach(([cpuType, values])=>{
                     for(let i = 0; i <= 2 && values.length > 10; i--){
-                        const maxi = values.indexOf((0, $l7i9T$max)(values));
+                        const maxi = values.indexOf((0, $5OpyM$max)(values));
                         values.splice(maxi, 1);
-                        const mini = values.indexOf((0, $l7i9T$min)(values));
+                        const mini = values.indexOf((0, $5OpyM$min)(values));
                         values.splice(mini, 1);
                     }
                     const o = cpu[cpuType] = {};
                     Object.defineProperty(o, "sum", {
                         enumerable: true,
                         get () {
-                            return (0, $l7i9T$sum)(values);
+                            return (0, $5OpyM$sum)(values);
                         }
                     });
                     Object.defineProperty(o, "max", {
                         enumerable: true,
                         get () {
-                            return values.length > 0 ? (0, $l7i9T$max)(values) : undefined;
+                            return values.length > 0 ? (0, $5OpyM$max)(values) : undefined;
                         }
                     });
                     Object.defineProperty(o, "avg", {
                         enumerable: true,
                         get () {
-                            return values.length > 0 ? (0, $l7i9T$mean)(values) : undefined;
+                            return values.length > 0 ? (0, $5OpyM$mean)(values) : undefined;
                         }
                     });
                     Object.defineProperty(o, "min", {
                         enumerable: true,
                         get () {
-                            return values.length > 0 ? (0, $l7i9T$min)(values) : undefined;
+                            return values.length > 0 ? (0, $5OpyM$min)(values) : undefined;
                         }
                     });
                     Object.defineProperty(o, "var", {
                         enumerable: true,
                         get () {
-                            return values.length > 0 ? (0, $l7i9T$variance)(values) : undefined;
+                            return values.length > 0 ? (0, $5OpyM$variance)(values) : undefined;
                         }
                     });
                     Object.defineProperty(o, "stdev", {
                         enumerable: true,
                         get () {
-                            return values.length > 0 ? (0, $l7i9T$std)(values) : undefined;
+                            return values.length > 0 ? (0, $5OpyM$std)(values) : undefined;
                         }
                     });
                     Object.defineProperty(o, "+/-", {
@@ -387,7 +387,7 @@ $cf838c15c8b009ba$export$195db9932151140f.it = $cf838c15c8b009ba$export$195db993
         if (f.constructor === AsyncFunction) f = async function() {
             //trackAsync(false);
             let error;
-            active = (0, $l7i9T$nodeprocess).getActiveResourcesInfo().reduce((resources, item)=>{
+            active = (0, $5OpyM$nodeprocess).getActiveResourcesInfo().reduce((resources, item)=>{
                 resources[item] ||= 0;
                 resources[item]++;
                 return resources;
@@ -398,14 +398,14 @@ $cf838c15c8b009ba$export$195db9932151140f.it = $cf838c15c8b009ba$export$195db993
             if (metrics?.pendingPromises) {
                 pendingPromises = $cf838c15c8b009ba$var$asyncTracker.created.size - ($cf838c15c8b009ba$var$asyncTracker.resolved.size - $cf838c15c8b009ba$var$asyncTracker.rejected.size);
                 if (typeof metrics.pendingPromises === "number") try {
-                    (0, $l7i9T$expect)(pendingPromises).to.be.lessThanOrEqual(metrics.pendingPromises);
+                    (0, $5OpyM$expect)(pendingPromises).to.be.lessThanOrEqual(metrics.pendingPromises);
                 } catch (e) {
                     e.message += " when checking pendingPromises";
                     error = e;
                 }
             }
             if (metrics?.activeResources) {
-                activeResources = (0, $l7i9T$nodeprocess).getActiveResourcesInfo().reduce((resources, item)=>{
+                activeResources = (0, $5OpyM$nodeprocess).getActiveResourcesInfo().reduce((resources, item)=>{
                     resources[item] ||= 0;
                     resources[item]++;
                     return resources;
@@ -416,7 +416,7 @@ $cf838c15c8b009ba$export$195db9932151140f.it = $cf838c15c8b009ba$export$195db993
                 });
                 if (typeof metrics.activeResources === "object") for (const [type, value] of Object.entries(metrics.activeResources)){
                     if (typeof value === "number") try {
-                        (0, $l7i9T$expect)(activeResources[type]).to.be.lessThanOrEqual(value);
+                        (0, $5OpyM$expect)(activeResources[type]).to.be.lessThanOrEqual(value);
                     } catch (e) {
                         e.message += ` when checking activeResources[${type}]`;
                         error ||= e;
@@ -426,15 +426,15 @@ $cf838c15c8b009ba$export$195db9932151140f.it = $cf838c15c8b009ba$export$195db993
             }
             if (metrics) {
                 $cf838c15c8b009ba$var$gc();
-                if (memory) memory.start = (0, $l7i9T$nodeprocess).memoryUsage();
+                if (memory) memory.start = (0, $5OpyM$nodeprocess).memoryUsage();
                 $cf838c15c8b009ba$var$gc();
                 let cycle = 1;
                 while(cycle <= cycles && !error){
                     sampleMetrics ||= [];
                     const sample = {
                         cycle: cycle,
-                        cpu: metrics.sample?.cpu ? (0, $l7i9T$nodeprocess).cpuUsage() : undefined,
-                        performance: metrics.sample?.performance ? (0, $l7i9T$performance).now() : undefined
+                        cpu: metrics.sample?.cpu ? (0, $5OpyM$nodeprocess).cpuUsage() : undefined,
+                        performance: metrics.sample?.performance ? (0, $5OpyM$performance).now() : undefined
                     };
                     try {
                         await _f();
@@ -442,19 +442,19 @@ $cf838c15c8b009ba$export$195db9932151140f.it = $cf838c15c8b009ba$export$195db993
                         error = e;
                     } finally{
                         if (sample.performance) {
-                            sample.performance = (0, $l7i9T$performance).now() - sample.performance;
+                            sample.performance = (0, $5OpyM$performance).now() - sample.performance;
                             if (typeof metrics.sample.performance === "number") try {
-                                (0, $l7i9T$expect)(sample.performance).to.be.lessThanOrEqual(metrics.sample.performance);
+                                (0, $5OpyM$expect)(sample.performance).to.be.lessThanOrEqual(metrics.sample.performance);
                             } catch (e) {
                                 e.message += ` when checking performance`;
                                 error ||= e;
                             }
                         }
                         if (sample.cpu) {
-                            sample.cpu = (0, $l7i9T$nodeprocess).cpuUsage(sample.cpu);
+                            sample.cpu = (0, $5OpyM$nodeprocess).cpuUsage(sample.cpu);
                             if (typeof metrics.sample.cpu === "object") for (const [type, max] of Object.entries(metrics.sample.cpu)){
                                 if (typeof max === "number") try {
-                                    (0, $l7i9T$expect)(sample.cpu[type]).to.be.lessThanOrEqual(max);
+                                    (0, $5OpyM$expect)(sample.cpu[type]).to.be.lessThanOrEqual(max);
                                 } catch (e) {
                                     e.message += ` when checking cpu[${type}]`;
                                     error ||= e;
@@ -470,12 +470,12 @@ $cf838c15c8b009ba$export$195db9932151140f.it = $cf838c15c8b009ba$export$195db993
                 }
                 if (memory) {
                     $cf838c15c8b009ba$var$gc();
-                    memory.finish = (0, $l7i9T$nodeprocess).memoryUsage();
+                    memory.finish = (0, $5OpyM$nodeprocess).memoryUsage();
                     memory.delta = $cf838c15c8b009ba$var$objectDelta(memory.start, memory.finish);
                     memory.deltaPct = $cf838c15c8b009ba$var$objectDeltaPercent(memory.start, memory.finish);
                     if (typeof metrics.memory === "object") for (const [type, max] of Object.entries(metrics.memory)){
                         if (typeof max === "number") try {
-                            (0, $l7i9T$expect)(memory.delta[type]).to.be.lessThanOrEqual(max);
+                            (0, $5OpyM$expect)(memory.delta[type]).to.be.lessThanOrEqual(max);
                         } catch (e) {
                             e.message += ` when checking memory[${type}]`;
                             error ||= e;
@@ -507,7 +507,7 @@ $cf838c15c8b009ba$export$195db9932151140f.it = $cf838c15c8b009ba$export$195db993
             // trackAsync(false);
             let error;
             if (metrics?.pendingPromises != null) pendingPromises = Promise.instances?.size || 0;
-            active = (0, $l7i9T$nodeprocess).getActiveResourcesInfo().reduce((resources, item)=>{
+            active = (0, $5OpyM$nodeprocess).getActiveResourcesInfo().reduce((resources, item)=>{
                 resources[item] ||= 0;
                 resources[item]++;
                 return resources;
@@ -518,14 +518,14 @@ $cf838c15c8b009ba$export$195db9932151140f.it = $cf838c15c8b009ba$export$195db993
             if (metrics?.pendingPromises != null) {
                 pendingPromises = $cf838c15c8b009ba$var$asyncTracker.created.size - ($cf838c15c8b009ba$var$asyncTracker.resolved.size - $cf838c15c8b009ba$var$asyncTracker.rejected.size);
                 if (typeof metrics.pendingPromises === "number") try {
-                    (0, $l7i9T$expect)(pendingPromises).to.be.lessThanOrEqual(metrics.pendingPromises);
+                    (0, $5OpyM$expect)(pendingPromises).to.be.lessThanOrEqual(metrics.pendingPromises);
                 } catch (e) {
                     e.message += ` when checking pendingPromises`;
                     error = e;
                 }
             }
             if (metrics?.activeResources) {
-                activeResources = (0, $l7i9T$nodeprocess).getActiveResourcesInfo().reduce((resources, item)=>{
+                activeResources = (0, $5OpyM$nodeprocess).getActiveResourcesInfo().reduce((resources, item)=>{
                     resources[item] ||= 0;
                     resources[item]++;
                     return resources;
@@ -536,7 +536,7 @@ $cf838c15c8b009ba$export$195db9932151140f.it = $cf838c15c8b009ba$export$195db993
                 });
                 if (typeof metrics.activeResources === "object") for (const [type, value] of Object.entries(metrics.activeResources)){
                     if (typeof value === "number") try {
-                        (0, $l7i9T$expect)(activeResources[type]).to.be.lessThanOrEqual(value);
+                        (0, $5OpyM$expect)(activeResources[type]).to.be.lessThanOrEqual(value);
                     } catch (e) {
                         e.message += " when checking activeResources";
                         error ||= e;
@@ -548,7 +548,7 @@ $cf838c15c8b009ba$export$195db9932151140f.it = $cf838c15c8b009ba$export$195db993
                 $cf838c15c8b009ba$var$gc();
                 if (memory) {
                     $cf838c15c8b009ba$var$gc();
-                    memory.start = (0, $l7i9T$nodeprocess).memoryUsage();
+                    memory.start = (0, $5OpyM$nodeprocess).memoryUsage();
                     $cf838c15c8b009ba$var$gc();
                 }
                 let cycle = 1;
@@ -556,8 +556,8 @@ $cf838c15c8b009ba$export$195db9932151140f.it = $cf838c15c8b009ba$export$195db993
                     sampleMetrics ||= [];
                     const sample = {
                         cycle: cycle,
-                        cpu: metrics.sample?.cpu ? (0, $l7i9T$nodeprocess).cpuUsage() : undefined,
-                        performance: metrics.sample?.performance ? (0, $l7i9T$performance).now() : undefined
+                        cpu: metrics.sample?.cpu ? (0, $5OpyM$nodeprocess).cpuUsage() : undefined,
+                        performance: metrics.sample?.performance ? (0, $5OpyM$performance).now() : undefined
                     };
                     try {
                         _f();
@@ -565,19 +565,19 @@ $cf838c15c8b009ba$export$195db9932151140f.it = $cf838c15c8b009ba$export$195db993
                         error = e;
                     } finally{
                         if (sample.performance) {
-                            sample.performance = (0, $l7i9T$performance).now() - sample.performance;
+                            sample.performance = (0, $5OpyM$performance).now() - sample.performance;
                             if (typeof metrics.sample.performance === "number") try {
-                                (0, $l7i9T$expect)(sample.performance).to.be.lessThanOrEqual(metrics.sample.performance);
+                                (0, $5OpyM$expect)(sample.performance).to.be.lessThanOrEqual(metrics.sample.performance);
                             } catch (e) {
                                 e.message += " when checking performance";
                                 error ||= e;
                             }
                         }
                         if (sample.cpu) {
-                            sample.cpu = (0, $l7i9T$nodeprocess).cpuUsage(sample.cpu);
+                            sample.cpu = (0, $5OpyM$nodeprocess).cpuUsage(sample.cpu);
                             if (typeof metrics.sample.cpu === "object") for (let [type, max] of Object.entries(metrics.sample.cpu)){
                                 if (typeof max === "number") try {
-                                    (0, $l7i9T$expect)(sample.cpu[type]).to.be.lessThanOrEqual(max);
+                                    (0, $5OpyM$expect)(sample.cpu[type]).to.be.lessThanOrEqual(max);
                                 } catch (e) {
                                     e.message += ` when checking cpu[${type}]`;
                                     error ||= e;
@@ -593,13 +593,13 @@ $cf838c15c8b009ba$export$195db9932151140f.it = $cf838c15c8b009ba$export$195db993
                 }
                 if (memory) {
                     $cf838c15c8b009ba$var$gc();
-                    memory.finish = (0, $l7i9T$nodeprocess).memoryUsage();
+                    memory.finish = (0, $5OpyM$nodeprocess).memoryUsage();
                     memory.delta = $cf838c15c8b009ba$var$objectDelta(memory.start, memory.finish);
                     memory.deltaPct = $cf838c15c8b009ba$var$objectDeltaPercent(memory.start, memory.finish);
                     if (typeof metrics.memory === "object") for (let [type, max] of Object.entries(metrics.memory)){
                         if (max === true) max = 0;
                         if (typeof max === "number") try {
-                            (0, $l7i9T$expect)(memory.delta[type]).to.be.lessThanOrEqual(max);
+                            (0, $5OpyM$expect)(memory.delta[type]).to.be.lessThanOrEqual(max);
                         } catch (e) {
                             e.message += ` when checking memory[${type}]`;
                             error ||= e;
@@ -638,4 +638,4 @@ $cf838c15c8b009ba$export$195db9932151140f.metrics = $cf838c15c8b009ba$var$metric
 
 
 export {$cf838c15c8b009ba$export$195db9932151140f as benchtest, $cf838c15c8b009ba$export$195db9932151140f as default};
-//# sourceMappingURL=index.js.map
+//# sourceMappingURL=benchtest.js.map

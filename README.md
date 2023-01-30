@@ -383,7 +383,9 @@ The redefined test specification runs the original test once to track use of Pro
 
 ## Release History (reverse chronological order)
 
-2023-01-26 v3.0.2b Fixed issue related to collecting `activeResources` issues when reporting. Enhanced documentation.
+2023-01-29 v3.0.3b Added parcel as build engine.
+
+2023-01-26 v3.0.2b Fixed bug related to collecting `activeResources` issues when reporting. Enhanced documentation.
 
 2023-01-26 v3.0.1b Added `'mocha` and `jest` support. Modified all test boundarys to use `<=`.
 
