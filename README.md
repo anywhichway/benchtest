@@ -383,7 +383,9 @@ The redefined test specification runs the original test once to track use of Pro
 
 ## Release History (reverse chronological order)
 
-2023-02-30 v3.0.4b Fixed CJS bundling issue. Optimized, short-circuits when timeout is a number or there is no timeout.
+2023-02-06 v3.0.5b Slight adjustments to build configuration.
+
+2023-01-30 v3.0.4b Fixed CJS bundling issue. Optimized, short-circuits when timeout is a number or there is no timeout.
 
 2023-01-30 v3.0.3b Added parcel as build engine.
 

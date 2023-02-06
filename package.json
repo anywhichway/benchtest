@@ -1,9 +1,10 @@
 {
   "name": "benchtest",
-  "version": "v3.1.4b",
+  "version": "v3.1.5b",
   "description": "Integrated performance testing and resource tracking (memory, cpu, Promise, socket, etc) for unit testing",
   "engines": {},
   "license": "MIT",
+  "type": "module",
   "source": "/src/index.js",
   "module": "./index.js",
   "main": "./dist/benchtest.js",
