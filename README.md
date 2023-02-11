@@ -383,7 +383,9 @@ The redefined test specification runs the original test once to track use of Pro
 
 ## Release History (reverse chronological order)
 
-2023-02-06 v3.0.5b Slight adjustments to build configuration.
+2023-02-10 v3.2.0 Dropped dist directory in favor of index.js at root.
+
+2023-02-06 v3.1.5b Slight adjustments to build configuration.
 
 2023-01-30 v3.0.4b Fixed CJS bundling issue. Optimized, short-circuits when timeout is a number or there is no timeout.
 
@@ -393,7 +395,7 @@ The redefined test specification runs the original test once to track use of Pro
 
 2023-01-26 v3.0.1b Added `'mocha` and `jest` support. Modified all test boundarys to use `<=`.
 
-2023-01-21 v3.0.5a Improved reporting, ehanced documentation.
+2023-01-21 v3.0.5a Improved reporting, enhanced documentation.
 
 2023-01-20 v3.0.4a Improved summary reporting.
 

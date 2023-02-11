@@ -1,13 +1,12 @@
 {
   "name": "benchtest",
-  "version": "v3.1.5b",
+  "version": "v3.2.0",
   "description": "Integrated performance testing and resource tracking (memory, cpu, Promise, socket, etc) for unit testing",
   "engines": {},
   "license": "MIT",
   "type": "module",
   "source": "/src/index.js",
-  "module": "./index.js",
-  "main": "./dist/benchtest.js",
+  "main": "./index.js",
   "scripts": {
     "test": "jasmine",
     "test-mocha": "c8 node_modules/mocha/bin/mocha ./spec/index.spec.js",

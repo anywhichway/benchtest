@@ -11,8 +11,7 @@ global.expect = chai.expect;
 const garbage = [];
 describe("main tests", () => {
 
-    const metrics = {memory:true, cpu:true, performance:true, pendingPromises: true,unresolvedAsyncs:true,activeResources:true},
-        cycles = 100;
+    const metrics = {memory:true, cpu:true, performance:true, pendingPromises: true,unresolvedAsyncs:true,activeResources:true};
 
     it("Promise",() => {
         const promise = new Promise((resolve,reject) => {});
